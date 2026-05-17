@@ -106,8 +106,7 @@ export const handler = async (event) => {
                 monto_total: total,
                 id_estado: 2, 
                 id_stripe_intent: stripeIntentId,
-                id_direccion: id_direccion,
-                nombre_categoria : nombre_categoria
+                id_direccion: id_direccion
             })
             .select()
             .single();
