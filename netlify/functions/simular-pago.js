@@ -118,6 +118,8 @@ export const handler = async (event) => {
             perfil_id: perfilId,
             venta_id: venta.venta_id,
             id_producto: item.id_producto,
+            id_tienda: item.id_tienda,
+            nombre_categoria: item.categorias?.nombre_categoria || null, // Guardar el nombre de la categoría
             id_estado: 1, // Pendiente
             precio_unitario: item.precio_venta,
             cantidad: item.cantidad || 1

@@ -106,7 +106,8 @@ export const handler = async (event) => {
                 monto_total: total,
                 id_estado: 2, 
                 id_stripe_intent: stripeIntentId,
-                id_direccion: id_direccion
+                id_direccion: id_direccion,
+                nombre_categoria : nombre_categoria
             })
             .select()
             .single();
@@ -135,6 +136,8 @@ export const handler = async (event) => {
             perfil_id: perfilId,
             venta_id: venta.venta_id,
             id_producto: item.id_producto,
+            id_tienda: item.id_tienda, 
+            nombre_categoria: item.categorias?.nombre_categoria || null, // Guardar el nombre de la categoría
             id_estado: 1, 
             precio_unitario: item.precio_venta,
             cantidad: item.cantidad || 1

@@ -106,8 +106,11 @@ CREATE TABLE IF NOT EXISTS public.pedidos (
   perfil_id UUID REFERENCES public.perfiles(perfil_id) ON DELETE CASCADE,
   venta_id UUID REFERENCES public.ventas(venta_id) ON DELETE CASCADE,
   id_producto UUID REFERENCES public.productos(id_producto) ON DELETE SET NULL,
+  id_tienda UUID REFERENCES public.tiendas(id_tienda) ON DELETE SET NULL, -- Agregado para facilitar filtrado
+  nombre_categoria VARCHAR(100), -- Agregado para reportes y DW
   id_estado INTEGER REFERENCES public.estados(id_estado) DEFAULT 1,
   precio_unitario NUMERIC(12,2) NOT NULL,
+  cantidad INTEGER DEFAULT 1, -- Agregado column que faltaba
   creado_en TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
