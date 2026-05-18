@@ -94,6 +94,8 @@ CREATE TABLE IF NOT EXISTS public.ventas (
   id_estado INTEGER REFERENCES public.estados(id_estado) DEFAULT 1,
   id_metodo_pago UUID REFERENCES public.metodos_pago(id_metodo_pago),
   id_stripe_intent TEXT,
+  id_direccion UUID REFERENCES public.direcciones(id_direccion),
+  nombre_categoria VARCHAR(100), -- Agregado para reportes rápidos por venta
   fecha_venta TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

@@ -80,6 +80,9 @@ export const handler = async (event) => {
             };
         }
 
+        // 4.1 Extraer la categoría principal para la venta (del primer item)
+        const categoriaPrincipal = carrito.length > 0 ? (carrito[0].categorias?.nombre_categoria || null) : null;
+
         // 5. Crear la Venta en Supabase
         let venta;
         const { data: nuevaVenta, error: ventaError } = await supabase
@@ -89,7 +92,8 @@ export const handler = async (event) => {
                 monto_total: total,
                 id_estado: 2, // 2 = Pagado (Simulado)
                 id_stripe_intent: stripeIntentId,
-                id_direccion: id_direccion
+                id_direccion: id_direccion,
+                nombre_categoria: categoriaPrincipal
             })
             .select()
             .single();
