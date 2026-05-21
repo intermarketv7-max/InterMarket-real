@@ -115,7 +115,7 @@ const TablaPedidosVendedor = ({ pedidos, cargando, cambiarEstadoPedido }) => {
               <th>Comprador</th>
               <th>Monto</th>
               <th>Estado</th>
-              <th className="text-center">Acciones</th>
+              
             </tr>
           </thead>
           <tbody>
@@ -132,26 +132,7 @@ const TablaPedidosVendedor = ({ pedidos, cargando, cambiarEstadoPedido }) => {
                   </Badge>
                 </td>
                 <td className="text-center">
-                  {pedido.id_estado === 1 && (
-                    <>
-                      <Button 
-                        variant="success" 
-                        size="sm" 
-                        className="me-2 rounded-pill px-3"
-                        onClick={() => cambiarEstadoPedido(pedido.id_pedido, 2)}
-                      >
-                        <i className="bi bi-check-circle me-1"></i> Aceptar
-                      </Button>
-                      <Button 
-                        variant="danger" 
-                        size="sm"
-                        className="rounded-pill px-3"
-                        onClick={() => cambiarEstadoPedido(pedido.id_pedido, 3)}
-                      >
-                        <i className="bi bi-x-circle me-1"></i> Rechazar
-                      </Button>
-                    </>
-                  )}
+                  
                   {pedido.id_estado === 2 && (
                     <Button 
                       variant="info" 

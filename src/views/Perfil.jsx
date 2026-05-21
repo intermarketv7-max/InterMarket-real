@@ -336,12 +336,12 @@ const Perfil = () => {
     <div className="perfil-modern-page pb-5">
       {/* Header con Portada */}
       <div className="perfil-header-banner position-relative">
-        <div className="banner-gradient"></div>
+       
         <Container>
-          <div className="perfil-header-content d-flex flex-column flex-md-row align-items-center align-items-md-end gap-4">
+          <div className="perfil-header-content d-flex flex-column flex-md-row align-items-center align-items-md-end gap-5">
             <div className="position-relative">
               <img
-                src={fotoUrl || "https://ui-avatars.com/api/?name=" + encodeURIComponent(perfil.usuarios?.username || user.user_metadata?.full_name || "Usuario")}
+                src={fotoUrl || "https://ui-avatars.com/api/?name=" + encodeURIComponent(perfil.foto_perfil?.username || user.user_metadata?.full_name || "Usuario")}
                 alt="Foto de perfil"
                 className="rounded-circle profile-avatar shadow-lg border border-4 border-white"
                 style={{ width: 160, height: 160, objectFit: "cover" }}
@@ -362,14 +362,7 @@ const Perfil = () => {
               <p className="text-white-50 mb-3 fs-5">{perfil.usuarios?.email || user.email}</p>
               
               <div className="d-flex gap-2 justify-content-center justify-content-md-start">
-                <Button 
-                  variant="white" 
-                  size="sm"
-                  onClick={() => navegar("/seleccion-rol")}
-                  className="rounded-pill px-4 fw-bold shadow-sm bg-white border-0 transition-all hover-scale"
-                >
-                  <i className="bi bi-arrow-left-right me-2"></i>Cambiar Rol
-                </Button>
+                
                 {archivoNuevo && (
                   <Button variant="success" size="sm" onClick={guardarPerfil} disabled={guardando} className="rounded-pill px-4 shadow-sm fw-bold border-0 pulse-soft">
                     {guardando ? <Spinner animation="border" size="sm" /> : <><i className="bi bi-check2-circle me-2"></i>Guardar Foto</>}

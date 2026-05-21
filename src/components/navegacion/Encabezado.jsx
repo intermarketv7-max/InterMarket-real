@@ -10,6 +10,7 @@ const Encabezado = () => {
   const [mostrarMenu, setMostrarMenu] = useState(false);
   const [carritoCount, setCarritoCount] = useState(0);
   const [scrolled, setScrolled] = useState(false);
+  const [fotoUrl, setFotoUrl] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
   const { user, role, signOut } = useAuth();
@@ -70,6 +71,29 @@ const Encabezado = () => {
     setNotificaciones(prev => prev.map(n => ({ ...n, leido: true })));
     await supabase.from('notificaciones').update({ leido: true }).in('id_notificacion', noLeidasIds);
   };
+
+  useEffect(() => {
+    if (!user) {
+      setFotoUrl("");
+      return;
+    }
+
+    const cargarFotoPerfil = async () => {
+      const { data, error } = await supabase
+        .from('perfiles')
+        .select('foto_perfil')
+        .eq('id_usuario', user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error cargando foto de perfil:', error);
+        return;
+      }
+      setFotoUrl(data?.foto_perfil || "");
+    };
+
+    cargarFotoPerfil();
+  }, [user]);
 
   const borrarNotificacion = async (id, e) => {
     e.stopPropagation(); // Evitar que el dropdown se cierre o marque como leído
@@ -237,7 +261,8 @@ const Encabezado = () => {
                   )}
                   {role === 'comprador' && (
                     <>
-                      <Nav.Link onClick={() => manejarNavegacion("/catalogo")} className={location.pathname === "/catalogo" ? "active fw-bold" : ""}>Catálogo</Nav.Link>
+                      <Nav.Link onClick={() => manejarNavegacion("/catalogo")} 
+                      className={location.pathname === "/catalogo" ? "active fw-bold" : ""}>Catálogo</Nav.Link>
                     
                     </>
                   )}
@@ -246,9 +271,18 @@ const Encabezado = () => {
                   {user && (
                     <Dropdown align="end" className="ms-3">
                       <Dropdown.Toggle variant="link" className="p-0 border-0 shadow-none d-flex align-items-center text-decoration-none">
-                        <div className="user-avatar-circle me-2">
-                          {(user.email || "U").charAt(0).toUpperCase()}
-                        </div>
+                        {fotoUrl ? (
+                          <img
+                            src={fotoUrl}
+                            alt="Foto de perfil"
+                            className="rounded-circle me-2"
+                            style={{ width: 36, height: 36, objectFit: 'cover', border: '2px solid #f8f9fa' }}
+                          />
+                        ) : (
+                          <div className="user-avatar-circle me-2">
+                            {(user.email || 'U').charAt(0).toUpperCase()}
+                          </div>
+                        )}
                         <div className="d-none d-lg-block text-start">
                           <div className="fw-bold text-dark small leading-tight" style={{fontSize: '0.85rem'}}>{user.email?.split('@')[0]}</div>
                           <div className="text-muted extra-small" style={{fontSize: '0.7rem'}}>Rol: {role || '...'}</div>
@@ -297,12 +331,21 @@ const Encabezado = () => {
           <Offcanvas.Body className="d-flex flex-column p-0">
             {user ? (
                 <>
-                  <div className="offcanvas-user-section">
+                  <div className="offcanvas-user-section d-flex align-items-center gap-2">
+                    {fotoUrl ? (
+                      <img
+                        src={fotoUrl}
+                        alt="Foto de perfil"
+                        className="rounded-circle"
+                        style={{ width: 40, height: 40, objectFit: 'cover', border: '2px solid #f8f9fa' }}
+                      />
+                    ) : (
                       <div className="user-avatar-placeholder">{(user.email || "U").charAt(0).toUpperCase()}</div>
-                      <div>
-                          <div className="fw-bold text-dark small">{user.email || 'Usuario'}</div>
-                          <div className="text-muted" style={{fontSize: '0.75rem'}}>Rol: {role || 'Cargando...'}</div>
-                      </div>
+                    )}
+                    <div>
+                      <div className="fw-bold text-dark small">{user.email || 'Usuario'}</div>
+                      <div className="text-muted" style={{fontSize: '0.75rem'}}>Rol: {role || 'Cargando...'}</div>
+                    </div>
                   </div>
                   <Nav className="flex-column">
                     <MobileNavLink ruta="/" icono="house" texto="Inicio" />
