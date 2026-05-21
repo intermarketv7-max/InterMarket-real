@@ -409,8 +409,8 @@ const ModalDetalleProducto = ({ mostrar, setMostrar, producto, agregarAlCarrito 
                                         <i className="bi bi-info-circle me-2"></i>Inicia sesión para dejar una reseña.
                                     </div>
                                 ) : null}
-
-                                <div className="list-group list-group-flush">
+                             
+                                <div className="list-group list-group-flush" style={{ maxHeight: '260px', overflowY: 'auto', overflowX: 'hidden' }}>
                                     {resenas.length > 0 ? (
                                         resenas.map((resena) => (
                                             <div key={resena.id_resena} className="list-group-item px-0 py-3">
