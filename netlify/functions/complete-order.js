@@ -97,7 +97,7 @@ export const handler = async (event) => {
             };
         }
 
-        // 4.1 Extraer la categoría principal para la venta (del primer item)
+            // 4.1 Extraer la categoría principal para la venta (del primer item)
         const categoriaPrincipal = carrito.length > 0 ? (carrito[0].categorias?.nombre_categoria || null) : null;
 
         // 5. Crear la Venta en Supabase
@@ -143,7 +143,9 @@ export const handler = async (event) => {
             nombre_categoria: item.categorias?.nombre_categoria || null, // Guardar el nombre de la categoría
             id_estado: 1, 
             precio_unitario: item.precio_venta,
-            cantidad: item.cantidad || 1
+            cantidad: item.cantidad || 1,
+            talla_seleccionada: item.talla_seleccionada || null,
+            color_seleccionado: item.color_seleccionado || null
         }));
 
         console.log("Payload a insertar en pedidos:", JSON.stringify(pedidos, null, 2));

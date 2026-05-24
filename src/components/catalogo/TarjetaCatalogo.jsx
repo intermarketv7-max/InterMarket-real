@@ -154,6 +154,9 @@ const TarjetaCatalogo = ({
                                 alert('No puedes comprar tus propios productos.');
                             } else if (producto.stock === 0) {
                                 alert('Este producto está agotado.');
+                            } else if ((Array.isArray(producto.tallas) && producto.tallas.length > 0 || Array.isArray(producto.colores) && producto.colores.length > 0)) {
+                                // Si tiene variantes, obligamos a ir al detalle para seleccionar
+                                abrirModalDetalles(producto);
                             } else {
                                 agregarAlCarrito(producto);
                             }
@@ -161,7 +164,13 @@ const TarjetaCatalogo = ({
                         disabled={producto.id_tienda === miTiendaId || producto.stock === 0}
                     >
                         <i className={`bi bi-${producto.id_tienda === miTiendaId ? 'shop' : producto.stock === 0 ? 'x-circle' : 'cart-plus'} me-2`}></i>
-                        {producto.id_tienda === miTiendaId ? 'Mi producto' : producto.stock === 0 ? 'Agotado' : 'Añadir al carrito'}
+                        {producto.id_tienda === miTiendaId 
+                            ? 'Mi producto' 
+                            : producto.stock === 0 
+                                ? 'Agotado' 
+                                : (Array.isArray(producto.tallas) && producto.tallas.length > 0 || Array.isArray(producto.colores) && producto.colores.length > 0)
+                                    ? 'Seleccionar Opciones'
+                                    : 'Añadir al carrito'}
                     </Button>
                 </div>
             </Card.Body>

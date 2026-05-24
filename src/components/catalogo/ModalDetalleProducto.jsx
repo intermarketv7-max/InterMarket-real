@@ -17,11 +17,18 @@ const ModalDetalleProducto = ({ mostrar, setMostrar, producto, agregarAlCarrito 
     const [cargando, setCargando] = useState(false);
     const [comprado, setComprado] = useState(false);
 
+    const [tallaSeleccionada, setTallaSeleccionada] = useState('');
+    const [colorSeleccionado, setColorSeleccionado] = useState('');
+    const [productoDetalle, setProductoDetalle] = useState(producto);
+
     const [nuevaResena, setNuevaResena] = useState({ calificacion: 5, comentario: '' });
     const [nuevaCalificacionTienda, setNuevaCalificacionTienda] = useState({ puntuacion: 5, comentario: '' });
 
     useEffect(() => {
         if (mostrar && producto) {
+            setTallaSeleccionada('');
+            setColorSeleccionado('');
+            setProductoDetalle(producto);
             cargarDetalles();
         }
     }, [mostrar, producto]);
@@ -29,6 +36,17 @@ const ModalDetalleProducto = ({ mostrar, setMostrar, producto, agregarAlCarrito 
     const cargarDetalles = async () => {
         setCargando(true);
         try {
+            // Recargar datos del producto para asegurar que tenemos las tallas y colores más recientes
+            const { data: prodData, error: prodError } = await supabase
+                .from('productos')
+                .select('*, categorias(nombre_categoria)')
+                .eq('id_producto', producto.id_producto)
+                .single();
+            
+            if (!prodError && prodData) {
+                setProductoDetalle(prodData);
+            }
+
             if (producto.id_tienda) {
                 const { data: tiendaData } = await supabase
                     .from('tiendas')
@@ -170,7 +188,22 @@ const ModalDetalleProducto = ({ mostrar, setMostrar, producto, agregarAlCarrito 
         return <Estrellas valor={promedio} />;
     };
 
+    const asegurarArray = (valor) => {
+        if (!valor) return [];
+        if (Array.isArray(valor)) return valor;
+        if (typeof valor === 'string') {
+            if (valor.startsWith('{') && valor.endsWith('}')) {
+                return valor.slice(1, -1).split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+            }
+            return valor.split(',').map(s => s.trim()).filter(s => s !== '');
+        }
+        return [];
+    };
+
     if (!producto) return null;
+
+    const tallas = asegurarArray(productoDetalle?.tallas);
+    const colores = asegurarArray(productoDetalle?.colores);
 
     return (
         <>
@@ -309,42 +342,102 @@ const ModalDetalleProducto = ({ mostrar, setMostrar, producto, agregarAlCarrito 
 
                             {/* COLUMNA DERECHA */}
                             <Col md={7}>
-                                <h3 className="fw-bold mb-2">{producto.nombre_producto}</h3>
+                                <h3 className="fw-bold mb-2">{productoDetalle?.nombre_producto || producto.nombre_producto}</h3>
                                 <Badge bg="info" className="mb-3">
-                                    {producto.categorias?.nombre_categoria || 'Categoría'}
+                                    {productoDetalle?.categorias?.nombre_categoria || producto.categorias?.nombre_categoria || 'Categoría'}
                                 </Badge>
 
                                 <div className="mb-4">
-                                    {producto.precio_original > producto.precio_venta && (
+                                    {(productoDetalle?.precio_original || producto.precio_original) > (productoDetalle?.precio_venta || producto.precio_venta) && (
                                         <span className="text-decoration-line-through text-muted me-2 fs-5">
-                                            C${parseFloat(producto.precio_original).toFixed(2)}
+                                            C${parseFloat(productoDetalle?.precio_original || producto.precio_original).toFixed(2)}
                                         </span>
                                     )}
                                     <span className="fs-2 fw-bold text-success">
-                                        C${parseFloat(producto.precio_venta).toFixed(2)}
+                                        C${parseFloat(productoDetalle?.precio_venta || producto.precio_venta).toFixed(2)}
                                     </span>
 
                                     {/* Badge de Stock */}
-                                    {producto.stock !== undefined && producto.stock !== null && (
+                                    {(productoDetalle?.stock !== undefined || producto.stock !== undefined) && (
                                         <div className="mt-2">
-                                            {producto.stock === 0 ? (
+                                            {(productoDetalle?.stock ?? producto.stock) === 0 ? (
                                                 <span className="badge bg-danger rounded-pill px-3 py-2">
                                                     <i className="bi bi-x-circle me-1"></i>Sin stock
                                                 </span>
-                                            ) : producto.stock <= 5 ? (
+                                            ) : (productoDetalle?.stock ?? producto.stock) <= 5 ? (
                                                 <span className="badge bg-warning text-dark rounded-pill px-3 py-2">
-                                                    <i className="bi bi-exclamation-triangle me-1"></i>¡Quedan solo {producto.stock}!
+                                                    <i className="bi bi-exclamation-triangle me-1"></i>¡Quedan solo {productoDetalle?.stock ?? producto.stock}!
                                                 </span>
                                             ) : (
                                                 <span className="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-2">
-                                                    <i className="bi bi-check-circle me-1"></i>{producto.stock} en stock
+                                                    <i className="bi bi-check-circle me-1"></i>{productoDetalle?.stock ?? producto.stock} en stock
                                                 </span>
                                             )}
                                         </div>
                                     )}
                                 </div>
 
-                                <p className="text-secondary mb-4">{producto.descripcion || 'Sin descripción detallada.'}</p>
+                                <p className="text-secondary mb-4">{productoDetalle?.descripcion || producto.descripcion || 'Sin descripción detallada.'}</p>
+
+                                {/* Selección de Talla y Color (si existen) */}
+                                {(tallas.length > 0 || colores.length > 0) && (
+                                    <div className="mb-4 bg-white p-3 rounded-4 shadow-sm border">
+                                        <h6 className="fw-bold mb-3 d-flex align-items-center gap-2">
+                                            <i className="bi bi-sliders2 text-primary"></i>
+                                            Personaliza tu pedido
+                                        </h6>
+                                        
+                                        {tallas.length > 0 && (
+                                            <div className="mb-3">
+                                                <label className="fw-bold small text-uppercase text-muted mb-2 d-block">Talla:</label>
+                                                <div className="d-flex flex-wrap gap-2">
+                                                    {tallas.map(talla => (
+                                                        <Button
+                                                            key={talla}
+                                                            variant={tallaSeleccionada === talla ? "primary" : "outline-light"}
+                                                            size="sm"
+                                                            className={`rounded-3 px-3 py-2 fw-bold transition-all ${tallaSeleccionada === talla ? 'shadow-sm' : 'text-dark border-secondary border-opacity-25'}`}
+                                                            onClick={() => setTallaSeleccionada(talla)}
+                                                            style={{ minWidth: '45px' }}
+                                                        >
+                                                            {talla}
+                                                        </Button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {colores.length > 0 && (
+                                            <div>
+                                                <label className="fw-bold small text-uppercase text-muted mb-2 d-block">Color:</label>
+                                                <div className="d-flex flex-wrap gap-2">
+                                                    {colores.map(color => (
+                                                        <Button
+                                                            key={color}
+                                                            variant={colorSeleccionado === color ? "primary" : "outline-light"}
+                                                            size="sm"
+                                                            className={`rounded-3 px-3 py-2 fw-bold transition-all ${colorSeleccionado === color ? 'shadow-sm' : 'text-dark border-secondary border-opacity-25'}`}
+                                                            onClick={() => setColorSeleccionado(color)}
+                                                        >
+                                                            {color}
+                                                        </Button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                        
+                                        {!tallaSeleccionada && tallas.length > 0 && (
+                                            <small className="text-danger d-block mt-2 animate-pulse">
+                                                * Por favor elige una talla
+                                            </small>
+                                        )}
+                                        {!colorSeleccionado && colores.length > 0 && (
+                                            <small className="text-danger d-block mt-1 animate-pulse">
+                                                * Por favor elige un color
+                                            </small>
+                                        )}
+                                    </div>
+                                )}
 
                                 {/* Botón Añadir / Aviso Propietario */}
                                 {esMiProducto ? (
@@ -355,7 +448,7 @@ const ModalDetalleProducto = ({ mostrar, setMostrar, producto, agregarAlCarrito 
                                             Este producto pertenece a tu tienda. No puedes comprar tus propios productos.
                                         </div>
                                     </div>
-                                ) : producto.stock === 0 ? (
+                                ) : (productoDetalle?.stock ?? producto.stock) === 0 ? (
                                     <div className="alert alert-danger border-0 shadow-sm rounded-4 d-flex align-items-center mb-4">
                                         <i className="bi bi-x-circle-fill fs-4 me-3"></i>
                                         <div>
@@ -364,18 +457,46 @@ const ModalDetalleProducto = ({ mostrar, setMostrar, producto, agregarAlCarrito 
                                         </div>
                                     </div>
                                 ) : (
-                                    <Button
-                                        variant="primary"
-                                        size="lg"
-                                        className="w-100 rounded-pill fw-bold shadow-sm mb-4"
-                                        style={{ backgroundColor: 'var(--color-primario)', borderColor: 'var(--color-primario)' }}
-                                        onClick={() => {
-                                            agregarAlCarrito(producto);
-                                            setMostrar(false);
-                                        }}
-                                    >
-                                        <i className="bi bi-cart-plus me-2"></i> Añadir al Carrito
-                                    </Button>
+                                    <div className="d-flex flex-column gap-2">
+                                        <Button
+                                            variant="primary"
+                                            size="lg"
+                                            className="w-100 rounded-pill fw-bold shadow-sm"
+                                            style={{ 
+                                                backgroundColor: (tallas.length > 0 && !tallaSeleccionada) || (colores.length > 0 && !colorSeleccionado) 
+                                                    ? '#ccc' 
+                                                    : 'var(--color-primario)', 
+                                                borderColor: (tallas.length > 0 && !tallaSeleccionada) || (colores.length > 0 && !colorSeleccionado) 
+                                                    ? '#ccc' 
+                                                    : 'var(--color-primario)',
+                                                cursor: (tallas.length > 0 && !tallaSeleccionada) || (colores.length > 0 && !colorSeleccionado) 
+                                                    ? 'not-allowed' 
+                                                    : 'pointer'
+                                            }}
+                                            disabled={(tallas.length > 0 && !tallaSeleccionada) || (colores.length > 0 && !colorSeleccionado)}
+                                            onClick={() => {
+                                                agregarAlCarrito({
+                                                    ...(productoDetalle || producto),
+                                                    talla_seleccionada: tallaSeleccionada,
+                                                    color_seleccionado: colorSeleccionado
+                                                });
+                                                setMostrar(false);
+                                            }}
+                                        >
+                                            <i className="bi bi-cart-plus me-2"></i> Añadir al Carrito
+                                        </Button>
+                                        
+                                        {((tallas.length > 0 && !tallaSeleccionada) || (colores.length > 0 && !colorSeleccionado)) && (
+                                            <div className="text-center">
+                                                <small className="text-danger fw-bold">
+                                                    <i className="bi bi-info-circle me-1"></i>
+                                                    Selecciona {tallas.length > 0 && !tallaSeleccionada ? 'talla' : ''} 
+                                                    {tallas.length > 0 && !tallaSeleccionada && colores.length > 0 && !colorSeleccionado ? ' y ' : ''}
+                                                    {colores.length > 0 && !colorSeleccionado ? 'color' : ''} para continuar
+                                                </small>
+                                            </div>
+                                        )}
+                                    </div>
                                 )}
 
                                 <hr />

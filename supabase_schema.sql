@@ -53,10 +53,14 @@ CREATE TABLE IF NOT EXISTS public.productos (
   descripcion TEXT,
   precio_compra NUMERIC(12,2),
   precio_venta NUMERIC(12,2) NOT NULL,
+  precio_original NUMERIC(12,2),
   categoria_id INTEGER REFERENCES public.categorias(id_categoria) ON DELETE SET NULL,
   imagen_url TEXT[], -- Array de URLs
   id_estado INTEGER REFERENCES public.estados(id_estado) DEFAULT 1,
   id_tienda UUID REFERENCES public.tiendas(id_tienda) ON DELETE CASCADE,
+  stock NUMERIC DEFAULT 0,
+  tallas TEXT[], -- Opciones de tallas (Ropa)
+  colores TEXT[], -- Opciones de colores (Ropa)
   creado_en TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -108,11 +112,13 @@ CREATE TABLE IF NOT EXISTS public.pedidos (
   perfil_id UUID REFERENCES public.perfiles(perfil_id) ON DELETE CASCADE,
   venta_id UUID REFERENCES public.ventas(venta_id) ON DELETE CASCADE,
   id_producto UUID REFERENCES public.productos(id_producto) ON DELETE SET NULL,
-  id_tienda UUID REFERENCES public.tiendas(id_tienda) ON DELETE SET NULL, -- Agregado para facilitar filtrado
-  nombre_categoria VARCHAR(100), -- Agregado para reportes y DW
+  id_tienda UUID REFERENCES public.tiendas(id_tienda) ON DELETE SET NULL,
+  nombre_categoria VARCHAR(100),
   id_estado INTEGER REFERENCES public.estados(id_estado) DEFAULT 1,
   precio_unitario NUMERIC(12,2) NOT NULL,
-  cantidad INTEGER DEFAULT 1, -- Agregado column que faltaba
+  cantidad INTEGER DEFAULT 1,
+  talla_seleccionada VARCHAR(50),
+  color_seleccionado VARCHAR(50),
   creado_en TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -188,6 +194,179 @@ CREATE POLICY "Usuarios actualizan su propio perfil" ON public.usuarios FOR UPDA
 -- Políticas para PERFILES
 CREATE POLICY "Perfiles visibles para todos" ON public.perfiles FOR SELECT USING (true);
 CREATE POLICY "Usuarios actualizan su propio perfil_detalle" ON public.perfiles FOR UPDATE USING (auth.uid() = id_usuario);
+
+-- Políticas para PRODUCTOS
+CREATE POLICY "Productos visibles para todos" ON public.productos FOR SELECT USING (true);
+CREATE POLICY "Solo vendedores crean productos" ON public.productos FOR INSERT WITH CHECK (
+  EXISTS (SELECT 1 FROM public.usuarios WHERE id_usuario = auth.uid() AND rol = 'vendedor')
+);
+CREATE POLICY "Vendedores modifican sus productos" ON public.productos FOR UPDATE USING (
+  EXISTS (
+    SELECT 1 FROM public.perfiles p
+    WHERE p.id_usuario = auth.uid() AND p.id_tienda = productos.id_tienda
+  )
+);
+CREATE POLICY "Vendedores eliminan sus productos" ON public.productos FOR DELETE USING (
+  EXISTS (
+    SELECT 1 FROM public.perfiles p
+    WHERE p.id_usuario = auth.uid() AND p.id_tienda = productos.id_tienda
+  )
+);
+
+-- Políticas para TIENDAS
+CREATE POLICY "Tiendas visibles para todos" ON public.tiendas FOR SELECT USING (true);
+
+-- Políticas para VENTAS
+CREATE POLICY "Compradores ven sus propias ventas" ON public.ventas FOR SELECT USING (auth.uid() = id_usuario);
+CREATE POLICY "Compradores pueden crear ventas" ON public.ventas FOR INSERT WITH CHECK (auth.uid() = id_usuario);
+
+-- Políticas para PEDIDOS (Detalles de venta)
+-- El comprador ve sus pedidos, el vendedor ve pedidos asociados a su tienda
+CREATE POLICY "Compradores ven sus pedidos" ON public.pedidos FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM public.perfiles p
+    WHERE p.id_usuario = auth.uid() AND p.perfil_id = pedidos.perfil_id
+  )
+);
+CREATE POLICY "Vendedores ven pedidos de sus productos" ON public.pedidos FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM public.productos pr
+    JOIN public.perfiles pe ON pe.id_tienda = pr.id_tienda
+    WHERE pr.id_producto = pedidos.id_producto AND pe.id_usuario = auth.uid()
+  )
+);
+CREATE POLICY "Vendedores pueden actualizar estado de pedidos" ON public.pedidos FOR UPDATE USING (
+  EXISTS (
+    SELECT 1 FROM public.productos pr
+    JOIN public.perfiles pe ON pe.id_tienda = pr.id_tienda
+    WHERE pr.id_producto = pedidos.id_producto AND pe.id_usuario = auth.uid()
+  )
+);
+CREATE POLICY "Compradores insertan pedidos" ON public.pedidos FOR INSERT WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.perfiles p
+    WHERE p.id_usuario = auth.uid() AND p.perfil_id = pedidos.perfil_id
+  )
+);
+
+-- =============================================
+-- 7. CONFIGURACIÓN DE TIEMPO REAL (REALTIME)
+-- =============================================
+-- Habilitar tiempo real en la tabla de pedidos para que el dashboard del vendedor se actualice
+ALTER PUBLICATION supabase_realtime ADD TABLE public.pedidos;
+
+-- =============================================
+  -- 8. TABLA MENSAJES (CHATS)
+  -- =============================================
+  CREATE TABLE IF NOT EXISTS public.mensajes (
+    id_mensaje UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_chat UUID REFERENCES public.chats(id_chat) ON DELETE CASCADE,
+    emisor_id UUID REFERENCES public.perfiles(perfil_id) ON DELETE CASCADE,
+    texto TEXT NOT NULL,
+    creado_en TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  );
+
+  ALTER TABLE public.mensajes ENABLE ROW LEVEL SECURITY;
+  CREATE POLICY "Mensajes visibles para todos (simplificado)" ON public.mensajes FOR SELECT USING (true);
+  CREATE POLICY "Mensajes insertables para todos (simplificado)" ON public.mensajes FOR INSERT WITH CHECK (true);
+
+  -- Habilitar tiempo real en mensajes
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.mensajes;
+
+  -- =============================================
+  -- 9. TABLA NOTIFICACIONES
+  -- =============================================
+  CREATE TABLE IF NOT EXISTS public.notificaciones (
+    id_notificacion UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    usuario_id UUID REFERENCES public.perfiles(perfil_id) ON DELETE CASCADE,
+    titulo VARCHAR(100) NOT NULL,
+    mensaje TEXT NOT NULL,
+    leido BOOLEAN DEFAULT false,
+    creado_en TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  );
+
+  ALTER TABLE public.notificaciones ENABLE ROW LEVEL SECURITY;
+  CREATE POLICY "Usuarios ven sus notificaciones" ON public.notificaciones FOR SELECT USING (true);
+  CREATE POLICY "Usuarios insertan notificaciones" ON public.notificaciones FOR INSERT WITH CHECK (true);
+  CREATE POLICY "Usuarios actualizan notificaciones" ON public.notificaciones FOR UPDATE USING (true);
+
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.notificaciones;
+
+  -- =============================================
+  -- 10. STORAGE PARA FOTOS DE PERFIL (AVATARES)
+  -- =============================================
+  -- Crear un bucket público llamado 'avatars'
+  INSERT INTO storage.buckets (id, name, public) VALUES ('avatars', 'avatars', true);
+
+  -- Permitir acceso público de lectura a las fotos
+  CREATE POLICY "Public Access" ON storage.objects FOR SELECT USING (bucket_id = 'avatars');
+
+  -- Permitir a los usuarios autenticados subir fotos
+  CREATE POLICY "Users can upload avatars" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'avatars' AND auth.role() = 'authenticated');
+
+  -- =============================================
+  -- 11. BUCKETS DE ALMACENAMIENTO PARA IMÁGENES
+  -- =============================================
+  -- Ejecuta estos comandos para crear los buckets para tiendas y productos
+  
+  -- Bucket para Productos
+  INSERT INTO storage.buckets (id, name, public) VALUES ('productos', 'productos', true);
+  CREATE POLICY "Public Access Productos" ON storage.objects FOR SELECT USING (bucket_id = 'productos');
+  CREATE POLICY "Users can upload productos" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'productos' AND auth.role() = 'authenticated');
+  CREATE POLICY "Users can update productos" ON storage.objects FOR UPDATE USING (bucket_id = 'productos' AND auth.role() = 'authenticated');
+  CREATE POLICY "Users can delete productos" ON storage.objects FOR DELETE USING (bucket_id = 'productos' AND auth.role() = 'authenticated');
+
+  -- Bucket para Tiendas
+  INSERT INTO storage.buckets (id, name, public) VALUES ('tiendas', 'tiendas', true);
+  CREATE POLICY "Public Access Tiendas" ON storage.objects FOR SELECT USING (bucket_id = 'tiendas');
+  CREATE POLICY "Users can upload tiendas" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'tiendas' AND auth.role() = 'authenticated');
+  CREATE POLICY "Users can update tiendas" ON storage.objects FOR UPDATE USING (bucket_id = 'tiendas' AND auth.role() = 'authenticated');
+  CREATE POLICY "Users can delete tiendas" ON storage.objects FOR DELETE USING (bucket_id = 'tiendas' AND auth.role() = 'authenticated');
+
+  -- =============================================
+  -- 12. ACTUALIZACIONES ADICIONALES (OFERTAS)
+  -- =============================================
+  -- Ejecutar esto en el SQL Editor de Supabase para habilitar las ofertas/descuentos
+  -- ALTER TABLE public.productos ADD COLUMN precio_original NUMERIC(12,2);
+
+  -- =============================================
+  -- 13. RESEÑAS Y CALIFICACIONES (PRODUCTOS Y TIENDAS)
+  -- =============================================
+  
+  -- Tabla para reseñas de productos
+  CREATE TABLE IF NOT EXISTS public.reseñas_productos (
+    id_resena UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    producto_id UUID REFERENCES public.productos(id_producto) ON DELETE CASCADE,
+    comprador_id UUID REFERENCES public.perfiles(perfil_id) ON DELETE CASCADE,
+    calificacion INTEGER CHECK (calificacion >= 1 AND calificacion <= 5) NOT NULL,
+    comentario TEXT NOT NULL,
+    creado_en TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(producto_id, comprador_id)
+  );
+
+  ALTER TABLE public.reseñas_productos ENABLE ROW LEVEL SECURITY;
+  CREATE POLICY "Reseñas visibles para todos" ON public.reseñas_productos FOR SELECT USING (true);
+  CREATE POLICY "Usuarios insertan sus reseñas" ON public.reseñas_productos FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM public.perfiles p WHERE p.id_usuario = auth.uid() AND p.perfil_id = reseñas_productos.comprador_id)
+  );
+
+  -- Tabla para calificaciones de tiendas
+  CREATE TABLE IF NOT EXISTS public.calificaciones_tiendas (
+    id_calificacion UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tienda_id UUID REFERENCES public.tiendas(id_tienda) ON DELETE CASCADE,
+    comprador_id UUID REFERENCES public.perfiles(perfil_id) ON DELETE CASCADE,
+    puntuacion INTEGER CHECK (puntuacion >= 1 AND puntuacion <= 5) NOT NULL,
+    comentario TEXT,
+    creado_en TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(tienda_id, comprador_id)
+  );
+
+  ALTER TABLE public.calificaciones_tiendas ENABLE ROW LEVEL SECURITY;
+  CREATE POLICY "Calificaciones tienda visibles" ON public.calificaciones_tiendas FOR SELECT USING (true);
+  CREATE POLICY "Usuarios insertan sus calificaciones tienda" ON public.calificaciones_tiendas FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM public.perfiles p WHERE p.id_usuario = auth.uid() AND p.perfil_id = calificaciones_tiendas.comprador_id)
+  );
+ATE USING (auth.uid() = id_usuario);
 
 -- Políticas para PRODUCTOS
 CREATE POLICY "Productos visibles para todos" ON public.productos FOR SELECT USING (true);

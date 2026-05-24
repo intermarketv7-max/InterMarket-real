@@ -100,12 +100,19 @@ function Catalogo() {
     };
 
     const agregarAlCarrito = (producto) => {
-        const existe = carrito.find(item => item.id_producto === producto.id_producto);
+        // Buscar si ya existe el mismo producto con la misma talla y color
+        const existe = carrito.find(item => 
+            item.id_producto === producto.id_producto && 
+            item.talla_seleccionada === producto.talla_seleccionada && 
+            item.color_seleccionado === producto.color_seleccionado
+        );
 
         let nuevoCarrito;
         if (existe) {
             nuevoCarrito = carrito.map(item =>
-                item.id_producto === producto.id_producto
+                (item.id_producto === producto.id_producto && 
+                 item.talla_seleccionada === producto.talla_seleccionada && 
+                 item.color_seleccionado === producto.color_seleccionado)
                     ? { ...item, cantidad: item.cantidad + 1 }
                     : item
             );
@@ -120,12 +127,17 @@ function Catalogo() {
         toast.className = 'position-fixed bottom-0 end-0 p-3 p-md-4 custom-toast-container';
         toast.style.zIndex = '9999';
         toast.style.width = window.innerWidth < 576 ? '100%' : 'auto';
+        
+        const infoVariante = [producto.talla_seleccionada, producto.color_seleccionado].filter(Boolean).join(' / ');
+        
         toast.innerHTML = `
             <div class="alert shadow-lg border-0 d-flex align-items-center mb-0" style="background: var(--color-primario); color: white; border-radius: 12px; min-width: ${window.innerWidth < 576 ? 'calc(100vw - 32px)' : '300px'};">
                 <i class="bi bi-cart-check-fill fs-4 me-3"></i>
                 <div style="overflow: hidden;">
                     <strong class="d-block text-truncate">Añadido al carrito</strong>
-                    <small class="opacity-75 d-block text-truncate" style="max-width: 200px;">${producto.nombre_producto}</small>
+                    <small class="opacity-75 d-block text-truncate" style="max-width: 200px;">
+                        ${producto.nombre_producto} ${infoVariante ? `(${infoVariante})` : ''}
+                    </small>
                 </div>
                 <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="alert"></button>
             </div>

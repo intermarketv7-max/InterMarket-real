@@ -61,6 +61,8 @@ const Vendedor = () => {
           id_estado,
           id_producto,
           cantidad,
+          talla_seleccionada,
+          color_seleccionado,
           productos!inner (nombre_producto, id_tienda),
           perfiles ( usuarios ( username ) )
         `)

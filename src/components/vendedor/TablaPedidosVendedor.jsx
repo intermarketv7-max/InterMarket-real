@@ -56,6 +56,12 @@ const TablaPedidosVendedor = ({ pedidos, cargando, cambiarEstadoPedido }) => {
                     </Badge>
                   </div>
                   <Card.Title className="h5 mb-1">{pedido.productos?.nombre_producto}</Card.Title>
+                  {(pedido.talla_seleccionada || pedido.color_seleccionado) && (
+                    <div className="mb-2">
+                      {pedido.talla_seleccionada && <Badge bg="light" text="dark" className="border me-1 fw-normal">Talla: {pedido.talla_seleccionada}</Badge>}
+                      {pedido.color_seleccionado && <Badge bg="light" text="dark" className="border fw-normal">Color: {pedido.color_seleccionado}</Badge>}
+                    </div>
+                  )}
                   <Card.Subtitle className="mb-2 text-muted">
                     <i className="bi bi-person me-1"></i> {pedido.perfiles?.usuarios?.username || 'Usuario'}
                   </Card.Subtitle>
@@ -123,7 +129,15 @@ const TablaPedidosVendedor = ({ pedidos, cargando, cambiarEstadoPedido }) => {
               <tr key={pedido.id_pedido}>
                 <td><small className="text-muted">{pedido.id_pedido.split('-')[0]}</small></td>
                 <td>{new Date(pedido.creado_en).toLocaleDateString()}</td>
-                <td>{pedido.productos?.nombre_producto}</td>
+                <td>
+                  <div className="fw-bold">{pedido.productos?.nombre_producto}</div>
+                  {(pedido.talla_seleccionada || pedido.color_seleccionado) && (
+                    <div className="small text-muted">
+                      {pedido.talla_seleccionada && <span className="me-2">Talla: {pedido.talla_seleccionada}</span>}
+                      {pedido.color_seleccionado && <span>Color: {pedido.color_seleccionado}</span>}
+                    </div>
+                  )}
+                </td>
                 <td>{pedido.perfiles?.usuarios?.username || 'Usuario'}</td>
                 <td className="fw-bold text-success">${Number(pedido.precio_unitario).toFixed(2)}</td>
                 <td>

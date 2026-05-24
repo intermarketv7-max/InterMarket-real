@@ -42,10 +42,14 @@ const TarjetaCatalogoMovile = ({
                         className="modern-mobile-quick-add"
                         onClick={(e) => {
                             e.stopPropagation();
-                            agregarAlCarrito(producto);
+                            if (Array.isArray(producto.tallas) && producto.tallas.length > 0 || Array.isArray(producto.colores) && producto.colores.length > 0) {
+                                abrirModalDetalles(producto);
+                            } else {
+                                agregarAlCarrito(producto);
+                            }
                         }}
                     >
-                        <i className="bi bi-plus-lg"></i>
+                        <i className={`bi bi-${(Array.isArray(producto.tallas) && producto.tallas.length > 0 || Array.isArray(producto.colores) && producto.colores.length > 0) ? 'list-ul' : 'plus-lg'}`}></i>
                     </button>
                 )}
             </div>

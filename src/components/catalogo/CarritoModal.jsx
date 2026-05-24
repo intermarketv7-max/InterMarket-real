@@ -39,14 +39,16 @@ const CarritoModal = ({ mostrar, setMostrar, carrito, setCarrito, total, onCompr
         }
     };
 
-    const actualizarCantidad = (id_producto, nuevaCantidad, stockDisponible) => {
+    const actualizarCantidad = (itemCarrito, nuevaCantidad, stockDisponible) => {
         if (nuevaCantidad < 1) return;
         if (stockDisponible !== undefined && nuevaCantidad > stockDisponible) {
             alert(`Solo hay ${stockDisponible} unidades disponibles.`);
             return;
         }
         const nuevoCarrito = carrito.map(item =>
-            item.id_producto === id_producto 
+            (item.id_producto === itemCarrito.id_producto && 
+             item.talla_seleccionada === itemCarrito.talla_seleccionada && 
+             item.color_seleccionado === itemCarrito.color_seleccionado)
                 ? { ...item, cantidad: nuevaCantidad }
                 : item
         );
@@ -55,8 +57,12 @@ const CarritoModal = ({ mostrar, setMostrar, carrito, setCarrito, total, onCompr
         window.dispatchEvent(new Event('carritoActualizado'));
     };
 
-    const eliminarDelCarrito = (id_producto) => {
-        const nuevoCarrito = carrito.filter(item => item.id_producto !== id_producto);
+    const eliminarDelCarrito = (itemCarrito) => {
+        const nuevoCarrito = carrito.filter(item => 
+            !(item.id_producto === itemCarrito.id_producto && 
+              item.talla_seleccionada === itemCarrito.talla_seleccionada && 
+              item.color_seleccionado === itemCarrito.color_seleccionado)
+        );
         setCarrito(nuevoCarrito);
         localStorage.setItem('carrito', JSON.stringify(nuevoCarrito));
         window.dispatchEvent(new Event('carritoActualizado'));
@@ -68,11 +74,73 @@ const CarritoModal = ({ mostrar, setMostrar, carrito, setCarrito, total, onCompr
         window.dispatchEvent(new Event('carritoActualizado'));
     };
 
+    const asegurarArray = (valor) => {
+        if (!valor) return [];
+        if (Array.isArray(valor)) return valor;
+        if (typeof valor === 'string') {
+            if (valor.startsWith('{') && valor.endsWith('}')) {
+                return valor.slice(1, -1).split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+            }
+            return valor.split(',').map(s => s.trim()).filter(s => s !== '');
+        }
+        return [];
+    };
+
+    const cambiarVariante = (itemOriginal, campo, nuevoValor) => {
+        const itemActualizado = { ...itemOriginal, [campo]: nuevoValor };
+        
+        // Buscar si ya existe otro item con las mismas características después del cambio
+        const indiceDuplicado = carrito.findIndex(item => 
+            item !== itemOriginal &&
+            item.id_producto === itemActualizado.id_producto &&
+            (campo === 'talla_seleccionada' ? nuevoValor : item.talla_seleccionada) === item.talla_seleccionada &&
+            (campo === 'color_seleccionado' ? nuevoValor : item.color_seleccionado) === item.color_seleccionado
+        );
+
+        let nuevoCarrito;
+        if (indiceDuplicado !== -1) {
+            // Si hay duplicado, fusionar cantidades y eliminar el original
+            nuevoCarrito = carrito.filter(item => item !== itemOriginal);
+            nuevoCarrito[indiceDuplicado] = {
+                ...nuevoCarrito[indiceDuplicado],
+                cantidad: nuevoCarrito[indiceDuplicado].cantidad + itemOriginal.cantidad
+            };
+        } else {
+            // Si no hay duplicado, solo actualizar el item
+            nuevoCarrito = carrito.map(item => 
+                item === itemOriginal ? itemActualizado : item
+            );
+        }
+
+        setCarrito(nuevoCarrito);
+        localStorage.setItem('carrito', JSON.stringify(nuevoCarrito));
+        window.dispatchEvent(new Event('carritoActualizado'));
+    };
+
+    const validarVariantes = () => {
+        for (const item of carrito) {
+            const tieneTallas = Array.isArray(item.tallas) && item.tallas.length > 0;
+            const tieneColores = Array.isArray(item.colores) && item.colores.length > 0;
+
+            if (tieneTallas && !item.talla_seleccionada) {
+                alert(`Por favor, selecciona una talla para ${item.nombre_producto}`);
+                return false;
+            }
+            if (tieneColores && !item.color_seleccionado) {
+                alert(`Por favor, selecciona un color para ${item.nombre_producto}`);
+                return false;
+            }
+        }
+        return true;
+    };
+
     const realizarCompra = async () => {
         if (!user) {
             alert("Debes iniciar sesión como comprador para realizar una compra.");
             return;
         }
+
+        if (!validarVariantes()) return;
 
         if (!idDireccionSel) {
             alert("Por favor, selecciona una dirección de entrega.");
@@ -131,6 +199,8 @@ const CarritoModal = ({ mostrar, setMostrar, carrito, setCarrito, total, onCompr
             alert("Debes iniciar sesión para simular una compra.");
             return;
         }
+
+        if (!validarVariantes()) return;
 
         if (!idDireccionSel) {
             alert("Por favor, selecciona una dirección de entrega.");
@@ -230,6 +300,44 @@ const CarritoModal = ({ mostrar, setMostrar, carrito, setCarrito, total, onCompr
                                     </Col>
                                     <Col xs={9} md={5}>
                                         <h6 className="fw-bold mb-1 text-truncate">{item.nombre_producto}</h6>
+                                        
+                                        {/* Selectores de Talla y Color en el Carrito */}
+                                        <div className="d-flex flex-wrap gap-2 mb-2">
+                                            {asegurarArray(item.tallas).length > 0 && (
+                                                <div style={{ minWidth: '100px' }}>
+                                                    <Form.Select 
+                                                        size="sm" 
+                                                        className="rounded-3 py-0 px-2 small bg-light border-0"
+                                                        value={item.talla_seleccionada || ""}
+                                                        onChange={(e) => cambiarVariante(item, 'talla_seleccionada', e.target.value)}
+                                                        style={{ fontSize: '0.75rem', height: '26px' }}
+                                                    >
+                                                        <option value="" disabled>Talla...</option>
+                                                        {asegurarArray(item.tallas).map(t => (
+                                                            <option key={t} value={t}>{t}</option>
+                                                        ))}
+                                                    </Form.Select>
+                                                </div>
+                                            )}
+                                            
+                                            {asegurarArray(item.colores).length > 0 && (
+                                                <div style={{ minWidth: '100px' }}>
+                                                    <Form.Select 
+                                                        size="sm" 
+                                                        className="rounded-3 py-0 px-2 small bg-light border-0"
+                                                        value={item.color_seleccionado || ""}
+                                                        onChange={(e) => cambiarVariante(item, 'color_seleccionado', e.target.value)}
+                                                        style={{ fontSize: '0.75rem', height: '26px' }}
+                                                    >
+                                                        <option value="" disabled>Color...</option>
+                                                        {asegurarArray(item.colores).map(c => (
+                                                            <option key={c} value={c}>{c}</option>
+                                                        ))}
+                                                    </Form.Select>
+                                                </div>
+                                            )}
+                                        </div>
+
                                         <div className="d-flex align-items-center gap-2 mb-2">
                                             <span className="text-primary fw-bold">C${parseFloat(item.precio_venta).toFixed(2)}</span>
                                             {item.stock !== undefined && item.stock !== null && (
@@ -246,7 +354,7 @@ const CarritoModal = ({ mostrar, setMostrar, carrito, setCarrito, total, onCompr
                                                 variant="white" 
                                                 className="border-0 rounded-circle d-flex align-items-center justify-content-center p-0"
                                                 style={{ width: '28px', height: '28px' }}
-                                                onClick={() => actualizarCantidad(item.id_producto, item.cantidad - 1, item.stock)}
+                                                onClick={() => actualizarCantidad(item, item.cantidad - 1, item.stock)}
                                             >
                                                 <i className="bi bi-dash"></i>
                                             </Button>
@@ -255,7 +363,7 @@ const CarritoModal = ({ mostrar, setMostrar, carrito, setCarrito, total, onCompr
                                                 variant="white" 
                                                 className="border-0 rounded-circle d-flex align-items-center justify-content-center p-0"
                                                 style={{ width: '28px', height: '28px' }}
-                                                onClick={() => actualizarCantidad(item.id_producto, item.cantidad + 1, item.stock)}
+                                                onClick={() => actualizarCantidad(item, item.cantidad + 1, item.stock)}
                                                 disabled={item.stock !== undefined && item.stock !== null && item.cantidad >= item.stock}
                                             >
                                                 <i className="bi bi-plus"></i>
@@ -271,7 +379,7 @@ const CarritoModal = ({ mostrar, setMostrar, carrito, setCarrito, total, onCompr
                                                 size="sm"
                                                 className="border-0 rounded-circle d-flex align-items-center justify-content-center"
                                                 style={{ width: '32px', height: '32px' }}
-                                                onClick={() => eliminarDelCarrito(item.id_producto)}
+                                                onClick={() => eliminarDelCarrito(item)}
                                             >
                                                 <i className="bi bi-trash"></i>
                                             </Button>

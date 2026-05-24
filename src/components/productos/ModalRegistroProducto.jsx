@@ -19,6 +19,35 @@ const ModalRegistroProducto = ({
         setDeshabilitado(false);
     };
 
+    const esCategoriaRopa = () => {
+        const cat = categorias.find(c => c.id_categoria === parseInt(nuevoProducto.categoria_id));
+        return cat && cat.nombre_categoria.toLowerCase().includes('ropa');
+    };
+
+    const TALLAS_COMUNES = ['Única', 'XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'];
+    const COLORES_COMUNES = ['Blanco', 'Negro', 'Rojo', 'Azul', 'Verde', 'Amarillo', 'Gris', 'Beige', 'Rosa'];
+
+    const toggleSeleccion = (campo, valor) => {
+        const actual = Array.isArray(nuevoProducto[campo]) ? nuevoProducto[campo] : [];
+        const nuevo = actual.includes(valor)
+            ? actual.filter(v => v !== valor)
+            : [...actual, valor];
+        
+        manejoCambioInput({ target: { name: campo, value: nuevo } });
+    };
+
+    const handleTallasChange = (e) => {
+        const value = e.target.value;
+        const tallasArray = value.split(',').map(s => s.trim()).filter(s => s !== '');
+        manejoCambioInput({ target: { name: 'tallas', value: tallasArray } });
+    };
+
+    const handleColoresChange = (e) => {
+        const value = e.target.value;
+        const coloresArray = value.split(',').map(s => s.trim()).filter(s => s !== '');
+        manejoCambioInput({ target: { name: 'colores', value: coloresArray } });
+    };
+
     return (
         <Modal
             show={mostrarModal}
@@ -145,6 +174,71 @@ const ModalRegistroProducto = ({
                             </Form.Group>
                         </Col>
                     </Row>
+
+                    {esCategoriaRopa() && (
+                        <div className="bg-light p-3 rounded-4 mb-3 border border-secondary border-opacity-10">
+                            <h6 className="fw-bold mb-3 d-flex align-items-center gap-2">
+                                <i className="bi bi-tag text-primary"></i>
+                                Variantes de Ropa
+                            </h6>
+                            <Row>
+                                <Col md={6}>
+                                    <Form.Group className="mb-3">
+                                        <Form.Label className="small fw-bold text-muted">Tallas Disponibles</Form.Label>
+                                        <div className="d-flex flex-wrap gap-1 mb-2">
+                                            {TALLAS_COMUNES.map(talla => (
+                                                <Button
+                                                    key={talla}
+                                                    variant={Array.isArray(nuevoProducto.tallas) && nuevoProducto.tallas.includes(talla) ? "primary" : "outline-secondary"}
+                                                    size="sm"
+                                                    className="rounded-pill px-3 py-1"
+                                                    style={{ fontSize: '0.75rem' }}
+                                                    onClick={() => toggleSeleccion('tallas', talla)}
+                                                >
+                                                    {talla}
+                                                </Button>
+                                            ))}
+                                        </div>
+                                        <Form.Control
+                                            type="text"
+                                            size="sm"
+                                            placeholder="Otras tallas (ej: 32, 34, 36)"
+                                            onChange={handleTallasChange}
+                                            value={Array.isArray(nuevoProducto.tallas) ? nuevoProducto.tallas.filter(t => !TALLAS_COMUNES.includes(t)).join(', ') : ''}
+                                            className="rounded-3"
+                                        />
+                                    </Form.Group>
+                                </Col>
+                                <Col md={6}>
+                                    <Form.Group className="mb-3">
+                                        <Form.Label className="small fw-bold text-muted">Colores Disponibles</Form.Label>
+                                        <div className="d-flex flex-wrap gap-1 mb-2">
+                                            {COLORES_COMUNES.map(color => (
+                                                <Button
+                                                    key={color}
+                                                    variant={Array.isArray(nuevoProducto.colores) && nuevoProducto.colores.includes(color) ? "primary" : "outline-secondary"}
+                                                    size="sm"
+                                                    className="rounded-pill px-3 py-1"
+                                                    style={{ fontSize: '0.75rem' }}
+                                                    onClick={() => toggleSeleccion('colores', color)}
+                                                >
+                                                    {color}
+                                                </Button>
+                                            ))}
+                                        </div>
+                                        <Form.Control
+                                            type="text"
+                                            size="sm"
+                                            placeholder="Otros colores (ej: Turquesa, Oro)"
+                                            onChange={handleColoresChange}
+                                            value={Array.isArray(nuevoProducto.colores) ? nuevoProducto.colores.filter(c => !COLORES_COMUNES.includes(c)).join(', ') : ''}
+                                            className="rounded-3"
+                                        />
+                                    </Form.Group>
+                                </Col>
+                            </Row>
+                        </div>
+                    )}
 
                     {nuevoProducto.archivos_imagen && nuevoProducto.archivos_imagen.length > 0 && (
                         <div className="mb-3">

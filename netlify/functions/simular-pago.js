@@ -126,7 +126,9 @@ export const handler = async (event) => {
             nombre_categoria: item.categorias?.nombre_categoria || null, // Guardar el nombre de la categoría
             id_estado: 1, // Pendiente
             precio_unitario: item.precio_venta,
-            cantidad: item.cantidad || 1
+            cantidad: item.cantidad || 1,
+            talla_seleccionada: item.talla_seleccionada || null,
+            color_seleccionado: item.color_seleccionado || null
         }));
 
         const { error: pedidosError } = await supabase.from('pedidos').insert(pedidos);

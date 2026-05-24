@@ -45,7 +45,9 @@ const Productos = () => {
         categoria_id: '',
         url_imagenes: '',
         id_estado: '2',
-        stock: ''
+        stock: '',
+        tallas: [],
+        colores: []
     });
 
     // ================== CARGAR DATOS ==================
@@ -487,7 +489,9 @@ const Productos = () => {
                 id_estado: Number.isInteger(idEstado) ? idEstado : 2,
                 imagen_url: urlsPublicas.length > 0 ? urlsPublicas : null,
                 id_tienda: idTienda,
-                stock: nuevoProducto.stock !== '' ? parseInt(nuevoProducto.stock, 10) : null
+                stock: nuevoProducto.stock !== '' ? parseInt(nuevoProducto.stock, 10) : null,
+                tallas: nuevoProducto.tallas && nuevoProducto.tallas.length > 0 ? nuevoProducto.tallas : null,
+                colores: nuevoProducto.colores && nuevoProducto.colores.length > 0 ? nuevoProducto.colores : null
             };
 
             const { error } = await supabase.from("productos").insert([payload]);
@@ -504,7 +508,9 @@ const Productos = () => {
                 url_imagenes: "",
                 archivo_imagen: null,
                 id_estado: "2",
-                stock: ''
+                stock: '',
+                tallas: [],
+                colores: []
             });
             setToast({ mostrar: true, mensaje: "Producto registrado exitosamente.", tipo: "exito" });
         } catch (err) {
@@ -547,7 +553,9 @@ const Productos = () => {
                 categoria_id: Number(productoEditar.categoria_id),
                 id_estado: Number(productoEditar.id_estado || 2),
                 imagen_url: urlsPublicas.length > 0 ? urlsPublicas : null,
-                stock: productoEditar.stock !== '' && productoEditar.stock !== undefined ? parseInt(productoEditar.stock, 10) : null
+                stock: productoEditar.stock !== '' && productoEditar.stock !== undefined ? parseInt(productoEditar.stock, 10) : null,
+                tallas: productoEditar.tallas && productoEditar.tallas.length > 0 ? productoEditar.tallas : null,
+                colores: productoEditar.colores && productoEditar.colores.length > 0 ? productoEditar.colores : null
             };
 
             const { error } = await supabase
