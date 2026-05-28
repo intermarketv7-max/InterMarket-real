@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { Spinner } from 'react-bootstrap';
 import InicioComprador from './InicioComprador';
 import InicioVendedor from './InicioVendedor';
+import AdminInicio from './AdminInicio';
 
 function Inicio() {
   const { role, loading } = useAuth();
@@ -15,8 +16,12 @@ function Inicio() {
     );
   }
 
+  // Redirección directa para el admin
+  if (role === 'admin') {
+    return <AdminInicio />;
+  }
+
   // Si no hay rol, RutaProtegida ya debería manejar la redirección a /seleccion-rol
-  // pero por seguridad si llegamos aquí sin rol, mostramos el de comprador o un estado neutro
   if (role === 'vendedor') {
     return <InicioVendedor />;
   }

@@ -7,8 +7,19 @@ import "../App.css";
 
 const VistaRol = () => {
   const navigate = useNavigate();
-  const { user, changeRole, signOut } = useAuth();
+  const { user, role, changeRole, signOut } = useAuth();
   const [verificando, setVerificando] = useState(false);
+
+  // Redirigir automáticamente si ya tiene un rol asignado
+  React.useEffect(() => {
+    if (role === 'admin') {
+      navigate("/admin-inicio", { replace: true });
+    } else if (role === 'vendedor') {
+      navigate("/vendedor", { replace: true });
+    } else if (role === 'comprador') {
+      navigate("/catalogo", { replace: true });
+    }
+  }, [role, navigate]);
 
   const handleRoleSelection = async (rol) => {
     if (rol === "vendedor") {
@@ -45,8 +56,13 @@ const VistaRol = () => {
   };
 
   const cerrarSesion = async () => {
-    await signOut();
-    navigate("/login", { replace: true });
+    try {
+      await signOut();
+      navigate("/login", { replace: true });
+    } catch (err) {
+      console.error("Error al cerrar sesión:", err);
+      navigate("/login", { replace: true });
+    }
   };
 
   return (

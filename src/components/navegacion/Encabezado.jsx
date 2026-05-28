@@ -147,7 +147,7 @@ const Encabezado = () => {
   const cerrarSesion = async () => {
     await signOut();
     setMostrarMenu(false);
-    navigate("/login");
+    navigate("/login", { replace: true });
   };
 
   const esLogin = location.pathname === "/login";
@@ -237,10 +237,10 @@ const Encabezado = () => {
               <i className="bi bi-cart2 me-2"></i>
               <span className="d-none d-sm-inline">Carrito</span>
               {carritoCount > 0 && <Badge bg="white" text="dark" className="ms-2 rounded-pill">{carritoCount}</Badge>}
-            </button>
-          )}
-          
-          <Navbar.Toggle aria-controls="offcanvasNavbar-expand-md" onClick={manejarToggle} className="border-0 shadow-none custom-toggler d-md-none">
+          </button>
+        )}
+        
+        <Navbar.Toggle aria-controls="offcanvasNavbar-expand-md" onClick={manejarToggle} className="border-0 shadow-none custom-toggler d-md-none">
              <i className={`bi ${mostrarMenu ? 'bi-x-lg' : 'bi-list'}`}></i>
           </Navbar.Toggle>
         </div>

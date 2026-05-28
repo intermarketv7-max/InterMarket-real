@@ -13,7 +13,7 @@ function Login() {
   const [error, setError] = useState(null);
   const [cargando, setCargando] = useState(false);
   const navegar = useNavigate();
-  const { user } = useAuth();
+  const { user, loading, role } = useAuth();
 
   const iniciarSesion = async () => {
     try {
@@ -28,10 +28,10 @@ function Login() {
         setError("Credenciales incorrectas. Verifica tus datos.");
         return;
       }
-      if (data.user) {
-        localStorage.removeItem("rol-activo");
-        navegar("/seleccion-rol");
-      }
+      
+      // Tras el login exitoso, no navegamos inmediatamente.
+      // El useEffect de abajo detectará el cambio de 'user' y esperará al 'role'.
+      localStorage.removeItem("rol-activo");
     } catch (err) {
       setError("Error de conexión con el servidor.");
     } finally {
@@ -58,8 +58,18 @@ function Login() {
   };
 
   useEffect(() => { 
-    if (user) navegar("/seleccion-rol");
-  }, [user, navegar]);
+    if (user && !loading) {
+      if (role === 'admin') {
+        navegar("/admin-inicio", { replace: true });
+      } else if (role) {
+        // Si ya tiene un rol (vendedor/comprador), va a inicio
+        navegar("/", { replace: true });
+      } else {
+        // Solo si no tiene rol alguno, va a selección
+        navegar("/seleccion-rol", { replace: true });
+      }
+    }
+  }, [user, loading, role, navegar]);
 
   return (
     <div className="login-page-bg">

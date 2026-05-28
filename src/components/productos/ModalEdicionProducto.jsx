@@ -21,7 +21,7 @@ const ModalEdicionProducto = ({
 
     const esCategoriaRopa = () => {
         const cat = categorias.find(c => c.id_categoria === parseInt(productoEditar.categoria_id));
-        return cat && cat.nombre_categoria.toLowerCase().includes('ropa');
+        return cat && cat.nombre_categoria?.toLowerCase().includes('ropa');
     };
 
     const TALLAS_COMUNES = ['Única', 'XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'];

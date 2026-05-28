@@ -47,7 +47,33 @@ function Catalogo() {
     };
 
     useEffect(() => {
-        cargarProductos();
+        const inicializarDatos = async () => {
+            setCargando(true);
+            try {
+                const promesas = [cargarProductos()];
+                
+                if (user) {
+                    promesas.push(
+                        supabase
+                            .from('perfiles')
+                            .select('id_tienda')
+                            .eq('id_usuario', user.id)
+                            .maybeSingle()
+                            .then(({ data }) => {
+                                if (data?.id_tienda) setMiTiendaId(data.id_tienda);
+                            })
+                    );
+                }
+                
+                await Promise.all(promesas);
+            } catch (error) {
+                console.error("Error al inicializar catálogo:", error);
+            } finally {
+                setCargando(false);
+            }
+        };
+
+        inicializarDatos();
 
         const carritoGuardado = JSON.parse(localStorage.getItem('carrito') || '[]');
         setCarrito(carritoGuardado);
@@ -58,17 +84,6 @@ function Catalogo() {
 
         window.addEventListener("abrirCarrito", handleAbrirCarrito);
 
-        const obtenerMiTienda = async () => {
-            if (!user) return;
-            const { data } = await supabase
-                .from('perfiles')
-                .select('id_tienda')
-                .eq('id_usuario', user.id)
-                .maybeSingle();
-            if (data?.id_tienda) setMiTiendaId(data.id_tienda);
-        };
-        obtenerMiTienda();
-
         return () => {
             window.removeEventListener("abrirCarrito", handleAbrirCarrito);
         };
@@ -76,8 +91,6 @@ function Catalogo() {
 
     const cargarProductos = async () => {
         try {
-            setCargando(true);
-
             const { data, error } = await supabase
                 .from("productos")
                 .select(`
@@ -86,16 +99,11 @@ function Catalogo() {
                 `)
                 .order("creado_en", { ascending: false });
 
-            if (error) {
-                console.error("Error Supabase:", error.message);
-                throw error;
-            }
-
+            if (error) throw error;
             setProductos(data || []);
         } catch (err) {
             console.error("Error al cargar productos:", err);
-        } finally {
-            setCargando(false);
+            throw err;
         }
     };
 
@@ -260,10 +268,11 @@ function Catalogo() {
                 ) : (
                     <Row className="g-2 g-md-4">
                         {productos
-                            .filter(p => 
-                                (p.nombre_producto?.toLowerCase() || '').includes(busqueda.toLowerCase()) || 
-                                (p.categorias?.nombre_categoria?.toLowerCase() || '').includes(busqueda.toLowerCase())
-                            )
+                            .filter(p => {
+                                const b = (busqueda || '').toLowerCase();
+                                return (p.nombre_producto?.toLowerCase() || '').includes(b) || 
+                                       (p.categorias?.nombre_categoria?.toLowerCase() || '').includes(b);
+                            })
                             .filter(p => !mostrarSoloOfertas || (p.precio_original && p.precio_original > p.precio_venta))
                             .map((producto) => (
                                 <Col key={producto.id_producto} xs={6} sm={6} md={4} lg={3} xl={3}>

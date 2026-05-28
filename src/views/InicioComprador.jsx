@@ -13,21 +13,21 @@ const InicioComprador = () => {
     useEffect(() => {
         const cargarDatos = async () => {
             try {
-                // Cargar productos destacados (los 4 más recientes)
-                const { data: prodData } = await supabase
-                    .from('productos')
-                    .select('*, categorias(nombre_categoria), perfiles(usuarios(username))')
-                    .order('creado_en', { ascending: false })
-                    .limit(4);
-                
-                // Cargar categorías
-                const { data: catData } = await supabase
-                    .from('categorias')
-                    .select('*')
-                    .limit(6);
+                // Cargar productos y categorías en paralelo
+                const [prodResponse, catResponse] = await Promise.all([
+                    supabase
+                        .from('productos')
+                        .select('*, categorias(nombre_categoria), perfiles(usuarios(username))')
+                        .order('creado_en', { ascending: false })
+                        .limit(4),
+                    supabase
+                        .from('categorias')
+                        .select('*')
+                        .limit(6)
+                ]);
 
-                setProductosDestacados(prodData || []);
-                setCategorias(catData || []);
+                setProductosDestacados(prodResponse.data || []);
+                setCategorias(catResponse.data || []);
             } catch (error) {
                 console.error("Error al cargar inicio:", error);
             } finally {
