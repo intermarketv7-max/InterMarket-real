@@ -61,11 +61,8 @@ function Login() {
     if (user && !loading) {
       if (role === 'admin') {
         navegar("/admin-inicio", { replace: true });
-      } else if (role) {
-        // Si ya tiene un rol (vendedor/comprador), va a inicio
-        navegar("/", { replace: true });
       } else {
-        // Solo si no tiene rol alguno, va a selección
+        // Todos los demás usuarios pasan por la selección de rol
         navegar("/seleccion-rol", { replace: true });
       }
     }

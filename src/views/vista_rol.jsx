@@ -10,15 +10,12 @@ const VistaRol = () => {
   const { user, role, changeRole, signOut } = useAuth();
   const [verificando, setVerificando] = useState(false);
 
-  // Redirigir automáticamente si ya tiene un rol asignado
+  // Redirigir automáticamente solo al admin, compradores y vendedores eligen manualmente
   React.useEffect(() => {
     if (role === 'admin') {
       navigate("/admin-inicio", { replace: true });
-    } else if (role === 'vendedor') {
-      navigate("/vendedor", { replace: true });
-    } else if (role === 'comprador') {
-      navigate("/catalogo", { replace: true });
     }
+    // Eliminamos la redirección automática para vendedor y comprador
   }, [role, navigate]);
 
   const handleRoleSelection = async (rol) => {
