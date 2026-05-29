@@ -52,9 +52,9 @@ const ModalEdicionCategoria = ({
                         <Form.Control
                             as="textarea" // Opcional: permite ver mejor el texto largo
                             rows={3}
-                            name="descripcion_categoria" // Indispensable
+                            name="descripcion" // Indispensable
                             placeholder="Ingrese la descripción de la categoría"
-                            value={categoriaEditar.descripcion_categoria}          
+                            value={categoriaEditar.descripcion}          
                             onChange={manejarCambioInputEdicion}
                         />
                     </Form.Group>

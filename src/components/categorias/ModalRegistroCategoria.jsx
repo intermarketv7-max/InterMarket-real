@@ -47,8 +47,8 @@ const ModalRegistroCategoria =({
                     <Form.Control
                         as="textarea"
                         rows={3}
-                        name="descripcion_categoria"
-                        value={nuevaCategoria.descripcion_categoria}
+                        name="descripcion"
+                        value={nuevaCategoria.descripcion}
                         onChange={manejoCambioInput}
                         placeholder="Ingresa la descripción"
                     />
@@ -65,7 +65,7 @@ const ModalRegistroCategoria =({
                 onClick={handleRegistrar}
                 disabled={
                     nuevaCategoria.nombre_categoria.trim() === "" ||
-                    nuevaCategoria.descripcion_categoria.trim() === "" ||
+                    nuevaCategoria.descripcion.trim() === "" ||
                     desabilitado
                 }
             >

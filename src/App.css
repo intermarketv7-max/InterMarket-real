@@ -731,7 +731,63 @@ body {
 
 /* --- RESPONSIVENESS FIXES --- */
 .margen-superior-main {
-    margin-top: 80px;
+  margin-top: 80px;
+}
+
+/* Efecto hover para las sugerencias del buscador */
+.suggestion-item:hover {
+  background-color: #f8f9fa;
+  transition: background-color 0.2s ease;
+}
+
+.suggestion-item img {
+  border: 1px solid #eee;
+}
+
+.suggestion-item h6 {
+  color: var(--color-primario);
+}
+
+.suggestion-item:last-child {
+  border-bottom: none !important;
+}
+
+/* Estilos para el filtro de categorías en el catálogo */
+.category-filter-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid transparent !important;
+}
+
+.category-filter-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08) !important;
+}
+
+.category-filter-card.active {
+  border-color: var(--color-primario) !important;
+  background-color: #f0f7f8;
+}
+
+.category-filter-card.active .fw-bold {
+  color: var(--color-primario);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primario);
 }
 
 @media (min-width: 768px) {

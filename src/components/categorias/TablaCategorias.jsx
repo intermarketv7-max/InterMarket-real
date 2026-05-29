@@ -39,7 +39,7 @@ const TablaCategorias = ({
               <tr key={categoria.id_categoria}>
                 <td>{categoria.id_categoria}</td>
                 <td>{categoria.nombre_categoria}</td>
-                <td className="d-none d-md-table-cell">{categoria.descripcion_categoria}</td>
+                <td className="d-none d-md-table-cell">{categoria.descripcion}</td>
                 <td className="text-center">
                   <Button
                     variant="outline-warning"

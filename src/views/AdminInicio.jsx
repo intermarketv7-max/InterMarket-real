@@ -1,29 +1,39 @@
 import React, { useEffect, useState } from "react";
 import { Container, Row, Col, Button, Card, Spinner, Table, Form, Badge } from "react-bootstrap";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../database/supabaseconfig";
 import NotificacionOperacion from '../components/NotificacionOperacion';
 import TarjetasProductos from '../components/productos/TarjetasProductos';
 
 const AdminInicio = () => {
+  const navigate = useNavigate();
   const [ventas, setVentas] = useState([]);
   const [productos, setProductos] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
+  const [categorias, setCategorias] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [toast, setToast] = useState({ mostrar: false, mensaje: '', tipo: '' });
   const [procesandoUsuario, setProcesandoUsuario] = useState(null);
 
   const fetchData = async () => {
     setCargando(true);
-    const { data: ventasData } = await supabase.from("ventas").select("*");
-    setVentas(ventasData || []);
-    const { data: productosData } = await supabase.from("productos").select("*, tiendas(nombre_tienda)");
-    setProductos(productosData || []);
-    const { data: usuariosData } = await supabase
-      .from("usuarios")
-      .select("*")
-      .order('creado_en', { ascending: false });
-    setUsuarios(usuariosData || []);
-    setCargando(false);
+    try {
+      const [ventasRes, productosRes, usuariosRes, categoriasRes] = await Promise.all([
+        supabase.from("ventas").select("*"),
+        supabase.from("productos").select("*, tiendas(nombre_tienda)"),
+        supabase.from("usuarios").select("*").order('creado_en', { ascending: false }),
+        supabase.from("categorias").select("*")
+      ]);
+
+      setVentas(ventasRes.data || []);
+      setProductos(productosRes.data || []);
+      setUsuarios(usuariosRes.data || []);
+      setCategorias(categoriasRes.data || []);
+    } catch (error) {
+      console.error("Error al cargar datos del admin:", error);
+    } finally {
+      setCargando(false);
+    }
   };
 
   useEffect(() => {
@@ -77,29 +87,58 @@ const AdminInicio = () => {
       ) : (
         <>
           <Row className="mb-4">
-            <Col md={4}>
-              <Card className="mb-3 shadow-sm">
+            <Col md={3}>
+              <Card className="mb-3 shadow-sm border-0 bg-primary text-white">
                 <Card.Body>
-                  <Card.Title>Ventas</Card.Title>
+                  <Card.Title className="small text-uppercase opacity-75">Ventas Totales</Card.Title>
                   <Card.Text className="display-6 fw-bold">{ventas.length}</Card.Text>
                 </Card.Body>
               </Card>
             </Col>
-            <Col md={4}>
-              <Card className="mb-3 shadow-sm">
+            <Col md={3}>
+              <Card className="mb-3 shadow-sm border-0 bg-info text-white">
                 <Card.Body>
-                  <Card.Title>Productos</Card.Title>
+                  <Card.Title className="small text-uppercase opacity-75">Productos</Card.Title>
                   <Card.Text className="display-6 fw-bold">{productos.length}</Card.Text>
                 </Card.Body>
               </Card>
             </Col>
-            <Col md={4}>
-              <Card className="mb-3 shadow-sm">
+            <Col md={3}>
+              <Card className="mb-3 shadow-sm border-0 bg-dark text-white">
                 <Card.Body>
-                  <Card.Title>Usuarios</Card.Title>
+                  <Card.Title className="small text-uppercase opacity-75">Usuarios</Card.Title>
                   <Card.Text className="display-6 fw-bold">{usuarios.length}</Card.Text>
                 </Card.Body>
               </Card>
+            </Col>
+            <Col md={3}>
+              <Card 
+                className="mb-3 shadow-sm border-0 bg-warning text-white" 
+                style={{ cursor: 'pointer' }}
+                onClick={() => navigate('/categorias')}
+              >
+                <Card.Body>
+                  <div className="d-flex justify-content-between align-items-center">
+                    <Card.Title className="small text-uppercase opacity-75 mb-0">Categorías</Card.Title>
+                    <i className="bi bi-arrow-right-circle"></i>
+                  </div>
+                  <Card.Text className="display-6 fw-bold">{categorias.length}</Card.Text>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+
+          {/* Gestión Rápida */}
+          <Row className="mb-4">
+            <Col>
+              <div className="d-flex gap-3">
+                <Button variant="outline-primary" className="rounded-pill px-4" onClick={() => navigate('/categorias')}>
+                  <i className="bi bi-tags me-2"></i>Gestionar Categorías
+                </Button>
+                <Button variant="outline-dark" className="rounded-pill px-4" onClick={() => navigate('/productos')}>
+                  <i className="bi bi-box me-2"></i>Ver Todos los Productos
+                </Button>
+              </div>
             </Col>
           </Row>
 

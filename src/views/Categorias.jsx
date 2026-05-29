@@ -26,12 +26,12 @@ const [paginaActual, establecerPaginaActual] = useState(1);
     const [categoriaEditar, setCategoriaEditar] = useState({
         id_categoria: "",
         nombre_categoria: "",
-        descripcion_categoria: "",
+        descripcion: "",
     });
 
     const [nuevaCategoria, setNuevaCategoria] = useState({
         nombre_categoria: '',
-        descripcion_categoria: ''
+        descripcion: ''
     });
 
     const manejoCambioInput = (e) => {
@@ -53,7 +53,7 @@ const [paginaActual, establecerPaginaActual] = useState(1);
   try {
     if (
       !categoriaEditar.nombre_categoria.trim() ||
-      !categoriaEditar.descripcion_categoria.trim()
+      !categoriaEditar.descripcion.trim()
     ) {
       setToast({
         mostrar: true,
@@ -69,7 +69,7 @@ const [paginaActual, establecerPaginaActual] = useState(1);
       .from("categorias")
       .update({
         nombre_categoria: categoriaEditar.nombre_categoria,
-        descripcion_categoria: categoriaEditar.descripcion_categoria,
+        descripcion: categoriaEditar.descripcion,
       })
       .eq("id_categoria", categoriaEditar.id_categoria);
 
@@ -143,7 +143,7 @@ const eliminarCategoria = async () => {
 
     const agregarCategoria = async () => {
         try {
-            if (!nuevaCategoria.nombre_categoria.trim() || !nuevaCategoria.descripcion_categoria.trim()) {
+            if (!nuevaCategoria.nombre_categoria.trim() || !nuevaCategoria.descripcion.trim()) {
                 setToast({ mostrar: true, mensaje: "Debe llenar todos los campos.", tipo: "advertencia" });
                 return;
             }
@@ -151,14 +151,14 @@ const eliminarCategoria = async () => {
             const { error } = await supabase.from("categorias").insert([
                 {
                     nombre_categoria: nuevaCategoria.nombre_categoria,
-                    descripcion_categoria: nuevaCategoria.descripcion_categoria,
+                    descripcion: nuevaCategoria.descripcion,
                 },
             ]);
 
             if (error) throw error;
 
             setToast({ mostrar: true, mensaje: `Categoría registrada exitosamente.`, tipo: "exito" });
-            setNuevaCategoria({ nombre_categoria: "", descripcion_categoria: "" });
+            setNuevaCategoria({ nombre_categoria: "", descripcion: "" });
             setMostrarModal(false);
             cargarCategorias(); // Recargar lista
         } catch (err) {
@@ -196,7 +196,7 @@ const eliminarCategoria = async () => {
     const filtradas = categorias.filter(
       (cat) =>
         (cat.nombre_categoria?.toLowerCase() || '').includes(textoLower) ||
-        (cat.descripcion_categoria?.toLowerCase() || '').includes(textoLower)
+        (cat.descripcion?.toLowerCase() || '').includes(textoLower)
     );
     setCategoriasFiltradas(filtradas);
   }

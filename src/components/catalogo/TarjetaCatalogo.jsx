@@ -38,6 +38,7 @@ const TarjetaCatalogo = ({
                                         src={url}
                                         alt={`${producto.nombre_producto} ${idx + 1}`}
                                         className="modern-card-img"
+                                        loading="lazy"
                                         onError={(e) => e.target.src = 'https://via.placeholder.com/400?text=Error'}
                                     />
                                 </Carousel.Item>
@@ -49,6 +50,7 @@ const TarjetaCatalogo = ({
                             src={producto.imagen_url?.[0] || 'https://via.placeholder.com/400?text=Sin+Imagen'}
                             alt={producto.nombre_producto}
                             className="modern-card-img"
+                            loading="lazy"
                             onError={(e) => e.target.src = 'https://via.placeholder.com/400?text=Error'}
                         />
                     )}
@@ -103,7 +105,7 @@ const TarjetaCatalogo = ({
                     </span>
                     <span className="modern-store-name text-truncate">
                         <i className="bi bi-shop me-1"></i>
-                        {producto.perfiles?.usuarios?.username || 'Tienda Local'}
+                        {producto.tiendas?.perfiles?.[0]?.usuarios?.username || 'Tienda Local'}
                     </span>
                 </div>
 

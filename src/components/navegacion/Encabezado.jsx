@@ -26,40 +26,64 @@ const Encabezado = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Cargar notificaciones
+  // Cargar datos del usuario (perfil y notificaciones) de forma optimizada
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setFotoUrl("");
+      setNotificaciones([]);
+      setNoLeidas(0);
+      return;
+    }
 
-    const cargarNotificaciones = async () => {
-      const { data: perfilData } = await supabase.from('perfiles').select('perfil_id').eq('id_usuario', user.id).maybeSingle();
-      if (!perfilData) return;
-      const perfilId = perfilData.perfil_id;
+    const cargarDatosUsuario = async () => {
+      try {
+        // 1. Obtener perfil_id y foto_perfil en una sola consulta
+        const { data: perfilData, error: perfilError } = await supabase
+          .from('perfiles')
+          .select('perfil_id, foto_perfil')
+          .eq('id_usuario', user.id)
+          .maybeSingle();
 
-      const { data } = await supabase
-        .from('notificaciones')
-        .select('*')
-        .eq('usuario_id', perfilId)
-        .order('creado_en', { ascending: false })
-        .limit(10);
+        if (perfilError) throw perfilError;
+        
+        if (perfilData) {
+          setFotoUrl(perfilData.foto_perfil || "");
+          
+          // 2. Cargar notificaciones usando el perfil_id
+          const { data: notisData, error: notisError } = await supabase
+            .from('notificaciones')
+            .select('*')
+            .eq('usuario_id', perfilData.perfil_id)
+            .order('creado_en', { ascending: false })
+            .limit(10);
 
-      if (data) {
-        setNotificaciones(data);
-        setNoLeidas(data.filter(n => !n.leido).length);
+          if (notisError) throw notisError;
+          
+          if (notisData) {
+            setNotificaciones(notisData);
+            setNoLeidas(notisData.filter(n => !n.leido).length);
+          }
+        }
+      } catch (err) {
+        console.error("Error cargando datos de usuario:", err);
       }
     };
 
-    cargarNotificaciones();
+    cargarDatosUsuario();
 
-    const channel = supabase.channel('notificaciones_navbar')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notificaciones' }, payload => {
-        cargarNotificaciones();
+    // Suscripción a notificaciones en tiempo real
+    const channel = supabase.channel(`notis_${user.id}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'notificaciones' 
+      }, () => {
+        cargarDatosUsuario();
       })
       .subscribe();
 
     return () => {
-      if (channel) {
-        supabase.removeChannel(channel);
-      }
+      if (channel) supabase.removeChannel(channel);
     };
   }, [user]);
 
@@ -71,29 +95,6 @@ const Encabezado = () => {
     setNotificaciones(prev => prev.map(n => ({ ...n, leido: true })));
     await supabase.from('notificaciones').update({ leido: true }).in('id_notificacion', noLeidasIds);
   };
-
-  useEffect(() => {
-    if (!user) {
-      setFotoUrl("");
-      return;
-    }
-
-    const cargarFotoPerfil = async () => {
-      const { data, error } = await supabase
-        .from('perfiles')
-        .select('foto_perfil')
-        .eq('id_usuario', user.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error('Error cargando foto de perfil:', error);
-        return;
-      }
-      setFotoUrl(data?.foto_perfil || "");
-    };
-
-    cargarFotoPerfil();
-  }, [user]);
 
   const borrarNotificacion = async (id, e) => {
     e.stopPropagation(); // Evitar que el dropdown se cierre o marque como leído

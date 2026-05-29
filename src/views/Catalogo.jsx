@@ -13,9 +13,15 @@ function Catalogo() {
     const { user } = useAuth();
     const [productos, setProductos] = useState([]);
     const [cargando, setCargando] = useState(true);
+    const [cargandoMas, setCargandoMas] = useState(false);
+    const [pagina, setPagina] = useState(0);
+    const [hayMas, setHayMas] = useState(true);
     const [carrito, setCarrito] = useState([]);
     const [mostrarCarrito, setMostrarCarrito] = useState(false);
     const [busqueda, setBusqueda] = useState('');
+    const [busquedaDebounced, setBusquedaDebounced] = useState('');
+    const [sugerencias, setSugerencias] = useState([]);
+    const [mostrarSugerencias, setMostrarSugerencias] = useState(false);
     const [mostrarSoloOfertas, setMostrarSoloOfertas] = useState(false);
     const [mostrarModalMensaje, setMostrarModalMensaje] = useState(false);
     const [mostrarModalDetalle, setMostrarModalDetalle] = useState(false);
@@ -24,6 +30,10 @@ function Catalogo() {
     const [productoSeleccionado, setProductoSeleccionado] = useState(null);
     const [miTiendaId, setMiTiendaId] = useState(null);
     const [esMovil, setEsMovil] = useState(window.innerWidth < 768);
+    const [categorias, setCategorias] = useState([]);
+    const [categoriaSeleccionada, setCategoriaSeleccionada] = useState(null);
+
+    const ITEMS_POR_PAGINA = 12;
 
     useEffect(() => {
         const handleResize = () => setEsMovil(window.innerWidth < 768);
@@ -31,26 +41,42 @@ function Catalogo() {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    const abrirModalContacto = (producto) => {
-        setProductoSeleccionado(producto);
-        setMostrarModalMensaje(true);
-    };
+    // Debounce para la búsqueda y sugerencias
+    useEffect(() => {
+        const fetchSugerencias = async () => {
+            if (busqueda.trim().length > 1) {
+                const { data } = await supabase
+                    .from('productos')
+                    .select('id_producto, nombre_producto, imagen_url, precio_venta')
+                    .ilike('nombre_producto', `%${busqueda}%`)
+                    .limit(5);
+                setSugerencias(data || []);
+                setMostrarSugerencias(true);
+            } else {
+                setSugerencias([]);
+                setMostrarSugerencias(false);
+            }
+        };
 
-    const abrirModalDetalles = (producto) => {
-        setProductoSeleccionado(producto);
-        setMostrarModalDetalle(true);
-    };
+        const timer = setTimeout(() => {
+            setBusquedaDebounced(busqueda);
+            setPagina(0); // Resetear a la primera página cuando cambia la búsqueda
+        }, 500);
 
-    const handleCompraExitosa = (itemsComprados) => {
-        setItemsCompradosRecientemente(itemsComprados);
-        setMostrarModalPostCompra(true);
-    };
+        fetchSugerencias();
+
+        return () => clearTimeout(timer);
+    }, [busqueda]);
 
     useEffect(() => {
         const inicializarDatos = async () => {
             setCargando(true);
             try {
-                const promesas = [cargarProductos()];
+                // Paralelizar la carga inicial de productos, id de la tienda y categorías
+                const promesas = [
+                    cargarProductos(0, true),
+                    supabase.from('categorias').select('*').order('nombre_categoria', { ascending: true })
+                ];
                 
                 if (user) {
                     promesas.push(
@@ -65,7 +91,8 @@ function Catalogo() {
                     );
                 }
                 
-                await Promise.all(promesas);
+                const [_, catRes] = await Promise.all(promesas);
+                if (catRes.data) setCategorias(catRes.data);
             } catch (error) {
                 console.error("Error al inicializar catálogo:", error);
             } finally {
@@ -87,24 +114,75 @@ function Catalogo() {
         return () => {
             window.removeEventListener("abrirCarrito", handleAbrirCarrito);
         };
-    }, [user]);
+    }, [user, busquedaDebounced, mostrarSoloOfertas, categoriaSeleccionada]);
 
-    const cargarProductos = async () => {
+    const cargarProductos = async (page = 0, esNuevaCarga = false) => {
         try {
-            const { data, error } = await supabase
+            if (!esNuevaCarga) setCargandoMas(true);
+            
+            const from = page * ITEMS_POR_PAGINA;
+            const to = from + ITEMS_POR_PAGINA - 1;
+
+            let query = supabase
                 .from("productos")
-                .select(`
-                    *,
-                    categorias (nombre_categoria)
-                `)
-                .order("creado_en", { ascending: false });
+                .select("*, categorias(nombre_categoria), tiendas(perfiles(usuarios(username)))")
+                .order("creado_en", { ascending: false })
+                .range(from, to);
+
+            // Filtro de búsqueda en el servidor
+            if (busquedaDebounced) {
+                query = query.ilike('nombre_producto', `%${busquedaDebounced}%`);
+            }
+
+            // Filtro de categoría en el servidor
+            if (categoriaSeleccionada) {
+                query = query.eq('categoria_id', categoriaSeleccionada);
+            }
+
+            // Filtro de ofertas en el servidor
+            if (mostrarSoloOfertas) {
+                query = query.gt('precio_original', 0).not('precio_original', 'is', null);
+            }
+
+            const { data, error } = await query;
 
             if (error) throw error;
-            setProductos(data || []);
+
+            if (esNuevaCarga) {
+                setProductos(data || []);
+            } else {
+                setProductos(prev => [...prev, ...(data || [])]);
+            }
+
+            setHayMas(data?.length === ITEMS_POR_PAGINA);
+            setPagina(page);
         } catch (err) {
             console.error("Error al cargar productos:", err);
             throw err;
+        } finally {
+            if (!esNuevaCarga) setCargandoMas(false);
         }
+    };
+
+    const cargarSiguientePagina = () => {
+        if (!cargandoMas && hayMas) {
+            cargarProductos(pagina + 1);
+        }
+    };
+
+    const abrirModalContacto = (producto) => {
+        setProductoSeleccionado(producto);
+        setMostrarModalMensaje(true);
+    };
+
+    const abrirModalDetalles = (producto) => {
+        setProductoSeleccionado(producto);
+        setMostrarModalDetalle(true);
+    };
+
+    const handleCompraExitosa = (itemsComprados) => {
+        setItemsCompradosRecientemente(itemsComprados);
+        setMostrarModalPostCompra(true);
     };
 
     const agregarAlCarrito = (producto) => {
@@ -179,26 +257,64 @@ function Catalogo() {
                         </div>
                     </Col>
                     <Col lg={5} md={8}>
-                        <InputGroup className="unique-input-group shadow-sm border rounded-pill overflow-hidden bg-white">
-                            <InputGroup.Text className="bg-transparent border-0 ps-4 pe-2">
-                                <i className="bi bi-search text-primary"></i>
-                            </InputGroup.Text>
-                            <Form.Control
-                                className="bg-transparent border-0 py-3 shadow-none"
-                                placeholder="¿Qué estás buscando hoy?"
-                                value={busqueda}
-                                onChange={(e) => setBusqueda(e.target.value)}
-                            />
-                            {busqueda && (
-                                <Button 
-                                    variant="link" 
-                                    className="text-muted border-0 pe-4"
-                                    onClick={() => setBusqueda('')}
+                        <div className="position-relative">
+                            <InputGroup className="unique-input-group shadow-sm border rounded-pill overflow-hidden bg-white">
+                                <InputGroup.Text className="bg-transparent border-0 ps-4 pe-2">
+                                    <i className="bi bi-search text-primary"></i>
+                                </InputGroup.Text>
+                                <Form.Control
+                                    className="bg-transparent border-0 py-3 shadow-none"
+                                    placeholder="¿Qué estás buscando hoy?"
+                                    value={busqueda}
+                                    onChange={(e) => setBusqueda(e.target.value)}
+                                    onFocus={() => busqueda.length > 1 && setMostrarSugerencias(true)}
+                                    onBlur={() => setTimeout(() => setMostrarSugerencias(false), 200)}
+                                />
+                                {busqueda && (
+                                    <Button 
+                                        variant="link" 
+                                        className="text-muted border-0 pe-4"
+                                        onClick={() => setBusqueda('')}
+                                    >
+                                        <i className="bi bi-x-circle-fill"></i>
+                                    </Button>
+                                )}
+                            </InputGroup>
+
+                            {/* Dropdown de Sugerencias */}
+                            {mostrarSugerencias && sugerencias.length > 0 && (
+                                <div 
+                                    className="position-absolute w-100 bg-white shadow-lg rounded-4 mt-2 overflow-hidden border"
+                                    style={{ zIndex: 1050, top: '100%' }}
                                 >
-                                    <i className="bi bi-x-circle-fill"></i>
-                                </Button>
+                                    {sugerencias.map((item) => (
+                                        <div 
+                                            key={item.id_producto}
+                                            className="d-flex align-items-center p-3 border-bottom suggestion-item"
+                                            style={{ cursor: 'pointer' }}
+                                            onClick={() => {
+                                                setBusqueda(item.nombre_producto);
+                                                setMostrarSugerencias(false);
+                                                // Abrir detalle directamente
+                                                abrirModalDetalles(item);
+                                            }}
+                                        >
+                                            <img 
+                                                src={item.imagen_url?.[0] || 'https://via.placeholder.com/50'} 
+                                                alt={item.nombre_producto}
+                                                className="rounded-3 me-3"
+                                                style={{ width: '40px', height: '40px', objectFit: 'cover' }}
+                                            />
+                                            <div className="flex-grow-1 overflow-hidden">
+                                                <h6 className="mb-0 text-truncate small fw-bold">{item.nombre_producto}</h6>
+                                                <small className="text-success">C$ {parseFloat(item.precio_venta).toFixed(2)}</small>
+                                            </div>
+                                            <i className="bi bi-arrow-up-left text-muted small ms-2"></i>
+                                        </div>
+                                    ))}
+                                </div>
                             )}
-                        </InputGroup>
+                        </div>
                     </Col>
                     <Col lg={3} md={4}>
                         <Button
@@ -218,6 +334,56 @@ function Catalogo() {
                         </Button>
                     </Col>
                 </Row>
+
+                {/* Filtro de Categorías en Tarjetas */}
+                <div className="mb-5">
+                    <div className="d-flex align-items-center justify-content-between mb-4">
+                        <h5 className="fw-bold mb-0">
+                            <i className="bi bi-grid-3x3-gap text-primary me-2"></i>
+                            Explorar por Categoría
+                        </h5>
+                        {categoriaSeleccionada && (
+                            <Button 
+                                variant="link" 
+                                className="text-decoration-none text-muted p-0 small"
+                                onClick={() => setCategoriaSeleccionada(null)}
+                            >
+                                <i className="bi bi-x-circle me-1"></i>Limpiar filtro
+                            </Button>
+                        )}
+                    </div>
+                    
+                    <div className="d-flex gap-3 overflow-auto pb-3 custom-scrollbar">
+                        <Card 
+                            className={`border-0 shadow-sm category-filter-card flex-shrink-0 ${!categoriaSeleccionada ? 'active' : ''}`}
+                            onClick={() => setCategoriaSeleccionada(null)}
+                            style={{ minWidth: '120px', cursor: 'pointer' }}
+                        >
+                            <Card.Body className="text-center p-3">
+                                <div className={`icon-wrapper mb-2 rounded-circle d-flex align-items-center justify-content-center mx-auto ${!categoriaSeleccionada ? 'bg-primary text-white' : 'bg-light text-primary'}`} style={{ width: '45px', height: '45px' }}>
+                                    <i className="bi bi-house-door fs-5"></i>
+                                </div>
+                                <span className="small fw-bold d-block">Todas</span>
+                            </Card.Body>
+                        </Card>
+
+                        {categorias.map(cat => (
+                            <Card 
+                                key={cat.id_categoria}
+                                className={`border-0 shadow-sm category-filter-card flex-shrink-0 ${categoriaSeleccionada === cat.id_categoria ? 'active' : ''}`}
+                                onClick={() => setCategoriaSeleccionada(cat.id_categoria)}
+                                style={{ minWidth: '120px', cursor: 'pointer' }}
+                            >
+                                <Card.Body className="text-center p-3">
+                                    <div className={`icon-wrapper mb-2 rounded-circle d-flex align-items-center justify-content-center mx-auto ${categoriaSeleccionada === cat.id_categoria ? 'bg-primary text-white' : 'bg-light text-primary'}`} style={{ width: '45px', height: '45px' }}>
+                                        <i className="bi bi-tag fs-5"></i>
+                                    </div>
+                                    <span className="small fw-bold d-block text-truncate w-100">{cat.nombre_categoria}</span>
+                                </Card.Body>
+                            </Card>
+                        ))}
+                    </div>
+                </div>
 
                 {/* Promotional Banner */}
                 <div
@@ -266,15 +432,9 @@ function Catalogo() {
                         <p className="text-muted opacity-75">Vuelve más tarde para ver nuevas novedades.</p>
                     </div>
                 ) : (
-                    <Row className="g-2 g-md-4">
-                        {productos
-                            .filter(p => {
-                                const b = (busqueda || '').toLowerCase();
-                                return (p.nombre_producto?.toLowerCase() || '').includes(b) || 
-                                       (p.categorias?.nombre_categoria?.toLowerCase() || '').includes(b);
-                            })
-                            .filter(p => !mostrarSoloOfertas || (p.precio_original && p.precio_original > p.precio_venta))
-                            .map((producto) => (
+                    <>
+                        <Row className="g-2 g-md-4">
+                            {productos.map((producto) => (
                                 <Col key={producto.id_producto} xs={6} sm={6} md={4} lg={3} xl={3}>
                                     {esMovil ? (
                                         <TarjetaCatalogoMovile 
@@ -294,7 +454,25 @@ function Catalogo() {
                                     )}
                                 </Col>
                             ))}
-                    </Row>
+                        </Row>
+
+                        {hayMas && (
+                            <div className="text-center mt-5">
+                                <Button 
+                                    variant="outline-primary" 
+                                    className="rounded-pill px-5 py-2 fw-bold"
+                                    onClick={cargarSiguientePagina}
+                                    disabled={cargandoMas}
+                                >
+                                    {cargandoMas ? (
+                                        <><Spinner animation="border" size="sm" className="me-2" /> Cargando...</>
+                                    ) : (
+                                        'Ver más productos'
+                                    )}
+                                </Button>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
 

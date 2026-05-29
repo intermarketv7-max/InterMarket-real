@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS public.usuarios (
   username VARCHAR(100) UNIQUE NOT NULL,
   email VARCHAR(255),
   rol VARCHAR(50) DEFAULT 'comprador' CHECK (rol IN ('comprador', 'vendedor', 'admin')),
+  restringido BOOLEAN DEFAULT false,
   creado_en TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -190,6 +191,9 @@ ALTER TABLE public.pedidos ENABLE ROW LEVEL SECURITY;
 -- Políticas para USUARIOS
 CREATE POLICY "Usuarios ven todos los usuarios" ON public.usuarios FOR SELECT USING (true);
 CREATE POLICY "Usuarios actualizan su propio perfil" ON public.usuarios FOR UPDATE USING (auth.uid() = id_usuario);
+CREATE POLICY "Admins pueden actualizar cualquier usuario" ON public.usuarios FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM public.usuarios WHERE id_usuario = auth.uid() AND rol = 'admin')
+);
 
 -- Políticas para PERFILES
 CREATE POLICY "Perfiles visibles para todos" ON public.perfiles FOR SELECT USING (true);

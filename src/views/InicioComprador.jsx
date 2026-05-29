@@ -12,12 +12,18 @@ const InicioComprador = () => {
 
     useEffect(() => {
         const cargarDatos = async () => {
+            // Intentar cargar categorías desde el cache de sesión primero para rapidez visual
+            const catCache = sessionStorage.getItem('cache-categorias-inicio');
+            if (catCache) {
+                setCategorias(JSON.parse(catCache));
+            }
+
             try {
                 // Cargar productos y categorías en paralelo
                 const [prodResponse, catResponse] = await Promise.all([
                     supabase
                         .from('productos')
-                        .select('*, categorias(nombre_categoria), perfiles(usuarios(username))')
+                        .select('*, categorias(nombre_categoria), tiendas(perfiles(usuarios(username)))')
                         .order('creado_en', { ascending: false })
                         .limit(4),
                     supabase
@@ -26,8 +32,12 @@ const InicioComprador = () => {
                         .limit(6)
                 ]);
 
-                setProductosDestacados(prodResponse.data || []);
-                setCategorias(catResponse.data || []);
+                if (prodResponse.data) setProductosDestacados(prodResponse.data);
+                
+                if (catResponse.data) {
+                    setCategorias(catResponse.data);
+                    sessionStorage.setItem('cache-categorias-inicio', JSON.stringify(catResponse.data));
+                }
             } catch (error) {
                 console.error("Error al cargar inicio:", error);
             } finally {
@@ -64,6 +74,7 @@ const InicioComprador = () => {
                                 src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&q=80&w=600" 
                                 alt="Shopping" 
                                 className="img-fluid rounded-4 shadow-lg"
+                                loading="lazy"
                             />
                         </Col>
                     </Row>

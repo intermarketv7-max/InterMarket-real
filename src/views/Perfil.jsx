@@ -55,82 +55,85 @@ const Perfil = () => {
         return;
       }
       
-      // 1. Obtener perfil
-      let { data: perfilData } = await supabase
-        .from("perfiles")
-        .select("*, usuarios(email, username)")
-        .eq("id_usuario", user.id)
-        .maybeSingle();
-        
-      if (!perfilData) {
-        // Fallback: Si por alguna razón el trigger de Supabase falló al registrarse (ej. con Google), 
-        // creamos el registro del usuario y perfil manualmente aquí.
-        try {
-          const email = user.email || '';
-          const username = email ? email.split('@')[0] : 'usuario';
-          
-          await supabase.from('usuarios').upsert({
-            id_usuario: user.id,
-            username: username,
-            email: email,
-            rol: 'comprador'
-          });
-          
-          await supabase.from('perfiles').upsert({
-            id_usuario: user.id,
-          });
-
-          const { data: retryData } = await supabase
+      try {
+        // 1. Paralelizar perfil, métodos de pago y direcciones para mejorar el tiempo de respuesta
+        const [perfilRes, metodosRes, direccionesRes] = await Promise.all([
+          supabase
             .from("perfiles")
             .select("*, usuarios(email, username)")
             .eq("id_usuario", user.id)
-            .maybeSingle();
+            .maybeSingle(),
+          supabase
+            .from("metodos_pago")
+            .select("*")
+            .eq("id_usuario", user.id)
+            .order("creado_en", { ascending: false }),
+          supabase
+            .from("direcciones")
+            .select("*")
+            .eq("id_usuario", user.id)
+            .order("creado_en", { ascending: false })
+        ]);
+
+        let perfilData = perfilRes.data;
+        
+        if (!perfilData) {
+          // Fallback: Si por alguna razón el trigger de Supabase falló al registrarse (ej. con Google), 
+          // creamos el registro del usuario y perfil manualmente aquí.
+          try {
+            const email = user.email || '';
+            const username = email ? email.split('@')[0] : 'usuario';
             
-          perfilData = retryData;
-        } catch (err) {
-          console.error("Error intentando crear el perfil de respaldo:", err);
+            await supabase.from('usuarios').upsert({
+              id_usuario: user.id,
+              username: username,
+              email: email,
+              rol: 'comprador'
+            });
+            
+            await supabase.from('perfiles').upsert({
+              id_usuario: user.id,
+            });
+
+            const { data: retryData } = await supabase
+              .from("perfiles")
+              .select("*, usuarios(email, username)")
+              .eq("id_usuario", user.id)
+              .maybeSingle();
+              
+            perfilData = retryData;
+          } catch (err) {
+            console.error("Error intentando crear el perfil de respaldo:", err);
+          }
         }
-      }
-        
-      if (perfilData) {
-        setPerfil(perfilData);
-        setFotoUrl(perfilData.foto_perfil || "");
-        
-        // 2. Obtener historial de pedidos
-        const { data: pedidosData } = await supabase
-          .from("pedidos")
-          .select(`
-            id_pedido, 
-            creado_en, 
-            precio_unitario, 
-            id_estado, 
-            productos(nombre_producto, imagen_url),
-            ventas(id_direccion, direcciones(*))
-          `)
-          .eq("perfil_id", perfilData.perfil_id)
-          .order("creado_en", { ascending: false });
           
-        setPedidos(pedidosData || []);
-
-        // 3. Obtener métodos de pago guardados del comprador
-        const { data: metodosData } = await supabase
-          .from("metodos_pago")
-          .select("*")
-          .eq("id_usuario", user.id)
-          .order("creado_en", { ascending: false });
-
-        setMetodosPago(metodosData || []);
-
-        // 4. Obtener direcciones
-        const { data: direccionesData } = await supabase
-          .from("direcciones")
-          .select("*")
-          .eq("id_usuario", user.id)
-          .order("creado_en", { ascending: false });
-
-        setDirecciones(direccionesData || []);
+        if (perfilData) {
+          setPerfil(perfilData);
+          setFotoUrl(perfilData.foto_perfil || "");
+          setMetodosPago(metodosRes.data || []);
+          setDirecciones(direccionesRes.data || []);
+          
+          // 2. Obtener historial de pedidos (depende del perfil_id obtenido arriba)
+          const { data: pedidosData } = await supabase
+            .from("pedidos")
+            .select(`
+              id_pedido, 
+              creado_en, 
+              precio_unitario, 
+              id_estado, 
+              productos(nombre_producto, imagen_url),
+              ventas(id_direccion, direcciones(*))
+            `)
+            .eq("perfil_id", perfilData.perfil_id)
+            .order("creado_en", { ascending: false });
+            
+          setPedidos(pedidosData || []);
+        }
+      } catch (err) {
+        console.error("Error al cargar datos de perfil:", err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     fetchDatos();
   }, [user]);

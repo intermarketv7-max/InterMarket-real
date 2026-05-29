@@ -7,7 +7,16 @@
     <title>intermarket</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Loader inicial para mejorar la percepción de carga -->
+      <div id="initial-loader" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; background-color: #FFFDF8;">
+        <div style="width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #10454F; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        <p style="margin-top: 20px; color: #10454F; font-weight: bold;">Cargando InterMarket...</p>
+      </div>
+      <style>
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      </style>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

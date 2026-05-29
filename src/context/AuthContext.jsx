@@ -14,50 +14,51 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Failsafe: Reducimos a 1 segundo para evitar esperas largas si algo falla
+    let lastUserId = null;
+    let isInitialMount = true;
+
+    // Failsafe: Reducimos a 800ms para evitar esperas largas si algo falla
     const failsafeTimer = setTimeout(() => {
       setLoading(false);
-    }, 1000);
+    }, 800);
 
-    let lastUserId = null;
-
-    // 1. Obtener sesión actual de forma optimizada
-    const getSessionAndRole = async () => {
+    // 1. Obtener sesión inicial y configurar listener en una sola lógica
+    const initAuth = async () => {
       try {
-        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
         if (error) throw error;
         
-        const currentUser = currentSession?.user ?? null;
+        const initialUser = initialSession?.user ?? null;
+        setSession(initialSession);
+        setUser(initialUser);
         
-        setSession(currentSession);
-        setUser(currentUser);
-        
-        if (currentUser) {
-          lastUserId = currentUser.id;
-          // Validamos el rol. fetchUserRole ya maneja el loading internamente de forma optimizada
-          await fetchUserRole(currentUser.id, false);
+        if (initialUser) {
+          lastUserId = initialUser.id;
+          await fetchUserRole(initialUser.id, false);
         } else {
           setLoading(false);
         }
       } catch (err) {
-        console.error("Error al obtener sesión:", err);
+        console.error("Error en inicialización de auth:", err);
         setLoading(false);
       } finally {
+        isInitialMount = false;
         clearTimeout(failsafeTimer);
       }
     };
 
-    getSessionAndRole();
+    initAuth();
 
     // 2. Escuchar cambios de autenticación
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      // Ignorar el evento inicial si ya lo manejamos en initAuth
+      if (isInitialMount && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN')) return;
+
       const currentUser = currentSession?.user ?? null;
-      
       setSession(currentSession);
       setUser(currentUser);
       
       if (currentUser) {
-        // Solo recargar rol si el usuario cambió o si es un inicio de sesión explícito
         if (currentUser.id !== lastUserId || event === 'SIGNED_IN') {
           lastUserId = currentUser.id;
           await fetchUserRole(currentUser.id, event === 'SIGNED_IN');
@@ -78,7 +79,6 @@ export const AuthProvider = ({ children }) => {
 
   const fetchUserRole = async (userId, forceLoading = false) => {
     // Si ya tenemos un rol en caché, liberamos el loading de inmediato para que la UI cargue
-    // Mientras tanto, validamos el rol real en segundo plano
     const rolEnCache = localStorage.getItem("rol-activo");
     if (rolEnCache) {
       setRole(rolEnCache);
@@ -88,20 +88,45 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      // 1. Consultar el rol real en la base de datos para verificar permisos (ej. si le quitaron el admin)
+      // 1. Consultar el rol real y estado de restricción en la base de datos
       const { data: userData, error: userError } = await supabase
         .from('usuarios')
-        .select('rol')
+        .select('rol, restringido')
         .eq('id_usuario', userId)
         .single();
 
-      if (!userError && userData?.rol) {
-        const nuevoRol = userData.rol;
+      if (!userError && userData) {
+        // Si el usuario está restringido, cerramos su sesión inmediatamente
+        if (userData.restringido) {
+          await signOut();
+          alert("Tu cuenta ha sido restringida ya que no cumples con la politicas.");
+          return;
+        }
+
+        const dbRole = userData.rol;
         
-        // Solo actualizamos si el rol cambió para evitar re-renders innecesarios
-        if (nuevoRol !== rolEnCache) {
-          localStorage.setItem("rol-activo", nuevoRol);
-          setRole(nuevoRol);
+        // Lógica de validación de rol:
+        // Si el usuario es Vendedor en la DB, puede actuar como Comprador sin que se le resetee.
+        // Si es Comprador en la DB pero intenta actuar como Vendedor, lo reseteamos por seguridad.
+        
+        let rolFinal = rolEnCache;
+
+        if (!rolEnCache) {
+          // Si no hay nada en caché, usamos el de la DB
+          rolFinal = dbRole;
+        } else {
+          // Validar si el rol en caché es permitido para su nivel en DB
+          if (dbRole === 'comprador' && rolEnCache === 'vendedor') {
+            // Un comprador no puede actuar como vendedor si no tiene el rol en DB
+            rolFinal = 'comprador';
+          } 
+          // Si es vendedor o admin en DB, permitimos que mantenga su rol de 'comprador' si lo eligió
+        }
+
+        // Solo actualizamos si el rol final es distinto al que tenemos en estado/caché
+        if (rolFinal !== rolEnCache) {
+          localStorage.setItem("rol-activo", rolFinal);
+          setRole(rolFinal);
         }
       }
     } catch (error) {

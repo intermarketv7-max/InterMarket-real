@@ -20,6 +20,7 @@ const TarjetaCatalogoMovile = ({
                     src={producto.imagen_url?.[0] || 'https://via.placeholder.com/400x533?text=Sin+Imagen'} 
                     alt={producto.nombre_producto} 
                     className="modern-mobile-img"
+                    loading="lazy"
                     onError={(e) => e.target.src = 'https://via.placeholder.com/400x533?text=Error'}
                 />
                 
