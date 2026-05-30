@@ -135,6 +135,78 @@ const Productos = () => {
 
     const parsearNumero = (valor) => Number.parseFloat(String(valor).replace(",", "."));
 
+    // --- SISTEMA AUTOMATIZADO DE SEGURIDAD Y MODERACIÓN (IA) ---
+    const analizarSeguridadProducto = async (producto) => {
+        try {
+            // En un entorno real, aquí se llamaría a una API de OpenAI o Gemini
+            // Por ahora, simulamos el análisis siguiendo las reglas del usuario
+            const contenido = `${producto.nombre_producto} ${producto.descripcion}`.toLowerCase();
+            
+            // Reglas de detección (Sustancias, Armas, Fraude, etc.)
+            const patronesInfraccion = [
+                { cat: 'Drogas', keywords: ['droga', 'dr0ga', 'm0lly', 'marihuana', 'cocaina', 'tusi', 'extasis', 'fentanyl', 'receta medica', 'pastilla azul'] },
+                { cat: 'Armas', keywords: ['pistola', 'fusil', 'municion', 'explosivo', 'granada', 'cuchillo mariposa', 'puñal', 'arma blanca'] },
+                { cat: 'Fraude', keywords: ['clonada', 'dinero facil', 'hackeo', 'cuentas robadas', 'streaming gratis', 'software malicioso', 'malware'] },
+                { cat: 'Contenido Adulto', keywords: ['porno', 'xxx', 'servicios sexuales', 'escort', 'masajes con final'] }
+            ];
+
+            let infraccionEncontrada = null;
+            for (const p of patronesInfraccion) {
+                if (p.keywords.some(k => contenido.includes(p.cat === 'Drogas' ? k.replace('o', '0') : k) || contenido.includes(k))) {
+                    infraccionEncontrada = p;
+                    break;
+                }
+            }
+
+            if (infraccionEncontrada) {
+                return {
+                    aprobado: false,
+                    nivel_riesgo: "alto",
+                    motivo: `El producto parece estar relacionado con ${infraccionEncontrada.cat}, lo cual viola nuestras políticas de seguridad.`,
+                    categoria_infraccion: infraccionEncontrada.cat
+                };
+            }
+
+            return { aprobado: true, nivel_riesgo: "bajo", motivo: "", categoria_infraccion: "Ninguna" };
+        } catch (err) {
+            console.error("Error en moderación:", err);
+            return { aprobado: true }; // En caso de error de la IA, dejamos pasar por ahora
+        }
+    };
+
+    const notificarAdminInfraccion = async (vendedor, analisis) => {
+        try {
+            // 1. Buscar el perfil del admin
+            const { data: admins } = await supabase
+                .from('usuarios')
+                .select('id_usuario')
+                .eq('rol', 'admin');
+            
+            if (!admins || admins.length === 0) return;
+
+            // 2. Crear notificación para los admins
+            for (const admin of admins) {
+                // Necesitamos el perfil_id del admin para la tabla notificaciones
+                const { data: perfilAdmin } = await supabase
+                    .from('perfiles')
+                    .select('perfil_id')
+                    .eq('id_usuario', admin.id_usuario)
+                    .single();
+
+                if (perfilAdmin) {
+                    await supabase.from('notificaciones').insert([{
+                        usuario_id: perfilAdmin.perfil_id,
+                        titulo: "⚠️ Alerta de Seguridad: Vendedor Reincidente",
+                        mensaje: `El usuario ${user.email} ha intentado publicar un producto prohibido (${analisis.categoria_infraccion}) tras varias advertencias.`,
+                        leido: false
+                    }]);
+                }
+            }
+        } catch (err) {
+            console.error("Error notificando al admin:", err);
+        }
+    };
+
     // --- FUNCIÓN DE ANÁLISIS DE CALIDAD GRATUITA (BRILLO) ---
     const analizarCalidadImagen = (archivo) => {
         return new Promise((resolve) => {
@@ -459,6 +531,37 @@ const Productos = () => {
                 return;
             }
 
+            // --- MODERACIÓN DE CONTENIDO (IA) ---
+            const analisis = await analizarSeguridadProducto(nuevoProducto);
+            if (!analisis.aprobado) {
+                // 1. Obtener infracciones actuales del perfil
+                const { data: perfil } = await supabase
+                    .from('perfiles')
+                    .select('infracciones')
+                    .eq('id_usuario', user.id)
+                    .single();
+                
+                const nuevasInfracciones = (perfil?.infracciones || 0) + 1;
+
+                // 2. Actualizar infracciones en DB
+                await supabase
+                    .from('perfiles')
+                    .update({ infracciones: nuevasInfracciones })
+                    .eq('id_usuario', user.id);
+
+                // 3. Notificar al admin si es reincidente (ej: 2 o más intentos)
+                if (nuevasInfracciones >= 2) {
+                    await notificarAdminInfraccion(user, analisis);
+                }
+
+                setToast({ 
+                    mostrar: true, 
+                    mensaje: `🚫 Bloqueado por Seguridad: ${analisis.motivo}`, 
+                    tipo: "error" 
+                });
+                return; // Detener la publicación
+            }
+
             const precioCompra = parsearNumero(nuevoProducto.precio_compra);
             const precioVenta = parsearNumero(nuevoProducto.precio_venta);
             const categoriaId = Number.parseInt(nuevoProducto.categoria_id, 10);
@@ -531,6 +634,18 @@ const Productos = () => {
                 !productoEditar.precio_venta
             ) {
                 setToast({ mostrar: true, mensaje: "Debe llenar todos los campos obligatorios.", tipo: "advertencia" });
+                return;
+            }
+
+            // --- MODERACIÓN DE CONTENIDO (IA) ---
+            const analisis = await analizarSeguridadProducto(productoEditar);
+            if (!analisis.aprobado) {
+                const { data: perfil } = await supabase.from('perfiles').select('infracciones').eq('id_usuario', user.id).single();
+                const nuevasInfracciones = (perfil?.infracciones || 0) + 1;
+                await supabase.from('perfiles').update({ infracciones: nuevasInfracciones }).eq('id_usuario', user.id);
+                if (nuevasInfracciones >= 2) await notificarAdminInfraccion(user, analisis);
+                
+                setToast({ mostrar: true, mensaje: `🚫 Edición Bloqueada: ${analisis.motivo}`, tipo: "error" });
                 return;
             }
 

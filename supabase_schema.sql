@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS public.perfiles (
   id_usuario UUID REFERENCES public.usuarios(id_usuario) ON DELETE CASCADE,
   foto_perfil TEXT,
   id_tienda UUID REFERENCES public.tiendas(id_tienda) ON DELETE SET NULL,
+  infracciones INTEGER DEFAULT 0,
   creado_en TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
