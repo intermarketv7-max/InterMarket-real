@@ -17,12 +17,42 @@ const CheckoutSuccess = () => {
         // Bloqueo para evitar doble ejecución (React Strict Mode o re-renders)
         if (procesadoRef.current) return;
 
-        const confirmarCompra = async () => {
-            if (!user || !session?.access_token) {
-                // Esperar a que la sesión esté cargada
+        const confirmarAccion = async () => {
+            if (!user || !session?.access_token) return;
+
+            const params = new URLSearchParams(location.search);
+            const type = params.get('type');
+            const planName = params.get('plan');
+
+            // --- LÓGICA PARA SUSCRIPCIONES ---
+            if (type === 'subscription') {
+                procesadoRef.current = true;
+                try {
+                    // 1. Registrar la suscripción
+                    await supabase.from('suscripciones').insert([{
+                        id_usuario: user.id,
+                        plan: planName || 'Plan Estándar',
+                        monto: planName === 'Bronce' ? 9.99 : (planName === 'Plata' ? 24.99 : 79.99),
+                        estado: 'activo',
+                        fecha_inicio: new Date().toISOString(),
+                        fecha_fin: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+                    }]);
+
+                    // 2. Actualizar el rol del usuario a vendedor
+                    await supabase.from('usuarios').update({ rol: 'vendedor' }).eq('id_usuario', user.id);
+                    
+                    // 3. Forzar actualización del rol en el contexto (opcional, pero ayuda)
+                    window.location.href = "/vendedor"; 
+                } catch (err) {
+                    console.error("Error activando suscripción:", err);
+                    setError("Error al activar tu cuenta de vendedor.");
+                } finally {
+                    setProcesando(false);
+                }
                 return;
             }
 
+            // --- LÓGICA PARA COMPRAS DE PRODUCTOS (Existente) ---
             const carritoPendienteStr = localStorage.getItem('carritoPendiente');
             const totalPendienteStr = localStorage.getItem('totalPendiente');
             const direccionPendiente = localStorage.getItem('direccionPendiente');
@@ -92,7 +122,7 @@ const CheckoutSuccess = () => {
             }
         };
 
-        confirmarCompra();
+        confirmarAccion();
     }, [user, session, location.search]);
 
     return (

@@ -4,10 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../database/supabaseconfig";
 import TarjetaPlan from "../components/suscripcion/TarjetaPlan";
-import { loadStripe } from "@stripe/stripe-js";
-
-// Reemplaza con tu Clave Pública de Stripe
-const stripePromise = loadStripe("pk_test_51TS0U8F9vHC8qRJnqsBAVYjlDmBQkC0nBONPR3S0riIf8zbvo8TH7bGXm8g5wlIpGdP0lh3n4COqc1yU1GxqJj8s00igaaAA43");
 
 const Suscripcion = () => {
   const navigate = useNavigate();
@@ -20,7 +16,7 @@ const Suscripcion = () => {
       id: "plan_bronce",
       nombre: "Plan Bronce",
       precio: 9.99,
-      priceId: "price_1TcbUNF9vHC8qRJniq5xcaj0", // ID de precio de Stripe
+      paymentLink: "https://buy.stripe.com/test_00w5kD3Bd4du8Zz7My04804", // Crea un 'Payment Link' en Stripe
       duracion: "Mensual",
       caracteristicas: [
         "Hasta 50 productos",
@@ -34,7 +30,7 @@ const Suscripcion = () => {
       id: "plan_plata",
       nombre: "Plan Plata",
       precio: 24.99,
-      priceId: "price_1TcbW0F9vHC8qRJn1pV3bMnt", // ID de precio de Stripe
+      paymentLink: "https://buy.stripe.com/test_aFaeVdc7JeS8b7H8QC04803", // Crea un 'Payment Link' en Stripe
       duracion: "Trimestral",
       caracteristicas: [
         "Hasta 200 productos",
@@ -49,7 +45,7 @@ const Suscripcion = () => {
       id: "plan_oro",
       nombre: "Plan Oro",
       precio: 79.99,
-      priceId: "price_1TcbWZF9vHC8qRJn4GKK4ebQ", // ID de precio de Stripe
+      paymentLink: "https://buy.stripe.com/test_bJe8wP4FheS82BbeaW04805", // Crea un 'Payment Link' en Stripe
       duracion: "Anual",
       caracteristicas: [
         "Productos ilimitados",
@@ -66,30 +62,18 @@ const Suscripcion = () => {
     setError(null);
 
     try {
-      const stripe = await stripePromise;
-      if (!stripe) throw new Error("No se pudo cargar Stripe");
-
-      console.log("Redirigiendo a Stripe Checkout para el plan:", plan.nombre);
-
-      // Usar redirectToCheckout con Client-only integration
-      const { error: stripeError } = await stripe.redirectToCheckout({
-        lineItems: [
-          {
-            price: plan.priceId,
-            quantity: 1,
-          },
-        ],
-        mode: "subscription",
-        successUrl: `${window.location.origin}/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancelUrl: `${window.location.origin}/suscripcion`,
-      });
-
-      if (stripeError) {
-        throw stripeError;
+      if (plan.paymentLink.includes("AQUÍ_TU_LINK")) {
+        throw new Error("Por favor, configura los Payment Links de Stripe en el código.");
       }
+
+      console.log("Redirigiendo a Stripe Payment Link para el plan:", plan.nombre);
+      
+      // La forma más moderna y sencilla en 2026: Redirección directa al link de pago
+      window.location.href = plan.paymentLink;
+      
     } catch (err) {
-      console.error("Error al procesar suscripción con Stripe:", err);
-      setError(err.message || "Error al conectar con Stripe.");
+      console.error("Error al procesar suscripción:", err);
+      setError(err.message || "Error al conectar con la pasarela de pago.");
     } finally {
       setLoading(false);
     }
