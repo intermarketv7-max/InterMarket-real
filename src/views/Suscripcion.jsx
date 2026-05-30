@@ -20,7 +20,7 @@ const Suscripcion = () => {
       id: "plan_bronce",
       nombre: "Plan Bronce",
       precio: 9.99,
-      priceId: "price_bronce_id", // ID de precio de Stripe
+      priceId: "prod_Ubp867dCYX3K19", // ID de precio de Stripe
       duracion: "Mensual",
       caracteristicas: [
         "Hasta 50 productos",
@@ -34,7 +34,7 @@ const Suscripcion = () => {
       id: "plan_plata",
       nombre: "Plan Plata",
       precio: 24.99,
-      priceId: "price_plata_id", // ID de precio de Stripe
+      priceId: "prod_UbpAM7nkABcVx9", // ID de precio de Stripe
       duracion: "Trimestral",
       caracteristicas: [
         "Hasta 200 productos",
@@ -49,7 +49,7 @@ const Suscripcion = () => {
       id: "plan_oro",
       nombre: "Plan Oro",
       precio: 79.99,
-      priceId: "price_oro_id", // ID de precio de Stripe
+      priceId: "prod_UbpAMkmm4geXov", // ID de precio de Stripe
       duracion: "Anual",
       caracteristicas: [
         "Productos ilimitados",
