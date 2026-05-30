@@ -46,7 +46,7 @@ const AppLayout = () => {
   // Pero aquí, si currentPath es "", mostramos el navbar si no está en la lista.
   
   // Re-evaluación simplificada:
-  const isAuthPage = currentPath === "/login" || currentPath === "/registro" || currentPath === "/seleccion-rol";
+  const isAuthPage = currentPath === "/login" || currentPath === "/registro" || currentPath === "/seleccion-rol" || currentPath === "/suscripcion";
   const shouldShowNavbar = !isAuthPage;
 
   return (
