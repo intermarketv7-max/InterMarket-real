@@ -20,7 +20,7 @@ const Suscripcion = () => {
       id: "plan_bronce",
       nombre: "Plan Bronce",
       precio: 9.99,
-      priceId: "prod_Ubp867dCYX3K19", // ID de precio de Stripe
+      priceId: "price_1TcbUNF9vHC8qRJniq5xcaj0", // ID de precio de Stripe
       duracion: "Mensual",
       caracteristicas: [
         "Hasta 50 productos",
@@ -34,7 +34,7 @@ const Suscripcion = () => {
       id: "plan_plata",
       nombre: "Plan Plata",
       precio: 24.99,
-      priceId: "prod_UbpAM7nkABcVx9", // ID de precio de Stripe
+      priceId: "price_1TcbW0F9vHC8qRJn1pV3bMnt", // ID de precio de Stripe
       duracion: "Trimestral",
       caracteristicas: [
         "Hasta 200 productos",
@@ -49,7 +49,7 @@ const Suscripcion = () => {
       id: "plan_oro",
       nombre: "Plan Oro",
       precio: 79.99,
-      priceId: "prod_UbpAMkmm4geXov", // ID de precio de Stripe
+      priceId: "price_1TcbWZF9vHC8qRJn4GKK4ebQ", // ID de precio de Stripe
       duracion: "Anual",
       caracteristicas: [
         "Productos ilimitados",
@@ -66,59 +66,27 @@ const Suscripcion = () => {
     setError(null);
 
     try {
-      // 1. Crear sesión de Stripe Checkout (Simulado o vía API externa)
-      // En una implementación real, aquí llamarías a una función de Supabase o API propia
-      // que use la librería 'stripe' para crear la sesión y devolver el sessionId.
-      
-      console.log("Iniciando pago con Stripe para el plan:", plan.nombre);
-      
-      // Simulación de flujo de Stripe Checkout
       const stripe = await stripePromise;
-      
-      /* 
-      // CÓDIGO REAL PARA PRODUCCIÓN (Requiere Backend/Edge Function):
-      const { data, error: apiError } = await supabase.functions.invoke('create-checkout-session', {
-        body: { priceId: plan.priceId, userId: user.id }
-      });
-      
-      if (apiError) throw apiError;
-      
-      const result = await stripe.redirectToCheckout({
-        sessionId: data.sessionId,
-      });
-      
-      if (result.error) throw result.error;
-      */
+      if (!stripe) throw new Error("No se pudo cargar Stripe");
 
-      // --- MODO DEMOSTRACIÓN (Actualización directa mientras configuras tu Backend) ---
-      
-      // Guardar la suscripción en Supabase
-      const { error: subError } = await supabase
-        .from("suscripciones")
-        .insert([
+      console.log("Redirigiendo a Stripe Checkout para el plan:", plan.nombre);
+
+      // Usar redirectToCheckout con Client-only integration
+      const { error: stripeError } = await stripe.redirectToCheckout({
+        lineItems: [
           {
-            id_usuario: user.id,
-            plan: plan.nombre,
-            monto: plan.precio,
-            estado: "activo",
-            fecha_inicio: new Date().toISOString(),
-            fecha_fin: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-          }
-        ]);
+            price: plan.priceId,
+            quantity: 1,
+          },
+        ],
+        mode: "subscription",
+        successUrl: `${window.location.origin}/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancelUrl: `${window.location.origin}/suscripcion`,
+      });
 
-      if (subError) throw subError;
-
-      // Actualizar el rol del usuario a 'vendedor'
-      const { error: roleError } = await supabase
-        .from("usuarios")
-        .update({ rol: "vendedor" })
-        .eq("id_usuario", user.id);
-
-      if (roleError) throw roleError;
-
-      changeRole("vendedor");
-      navigate("/vendedor");
-      
+      if (stripeError) {
+        throw stripeError;
+      }
     } catch (err) {
       console.error("Error al procesar suscripción con Stripe:", err);
       setError(err.message || "Error al conectar con Stripe.");
