@@ -13,7 +13,7 @@ import Paginacion from "../components/ordenamiento/Paginacion";
 import { useAuth } from '../context/AuthContext';
 
 const Productos = () => {
-    const { user } = useAuth();
+    const { user, role } = useAuth();
     // --- ESTADOS DE DATOS ---
     const [productos, setProductos] = useState([]);
     const [categorias, setCategorias] = useState([]);
@@ -50,14 +50,32 @@ const Productos = () => {
         colores: []
     });
 
-    // ================== CARGAR DATOS ==================
-    const cargarProductos = async () => {
-        try {
-            setCargando(true);
-            if (!user) return;
-            
-            // Buscar tienda del perfil
-            const { data: perfilData } = await supabase.from('perfiles').select('id_tienda').eq('id_usuario', user.id).maybeSingle();
+   // ================== CARGAR DATOS ==================
+const cargarProductos = async () => {
+    try {
+        setCargando(true);
+        if (!user) return;
+
+        // Query base
+        let query = supabase
+            .from("productos")
+            .select(`*, categorias(nombre_categoria), tiendas(nombre_tienda)`)
+            .order("creado_en", { ascending: false });
+
+        if (user.rol === 'admin' || role === 'admin') {
+            // ==================== ADMIN: Ve todos los productos ====================
+            const { data, error } = await query;
+            if (error) throw error;
+            setProductos(data || []);
+            setIdTienda(null);
+        } else {
+            // ==================== VENDEDOR: Solo sus productos ====================
+            const { data: perfilData } = await supabase
+                .from('perfiles')
+                .select('id_tienda')
+                .eq('id_usuario', user.id)
+                .maybeSingle();
+
             const id_tienda_vendedor = perfilData?.id_tienda;
             setIdTienda(id_tienda_vendedor);
 
@@ -67,21 +85,21 @@ const Productos = () => {
                 return;
             }
 
-            const { data, error } = await supabase
-                .from("productos")
-                .select(`*, categorias (nombre_categoria)`)
-                .eq("id_tienda", id_tienda_vendedor)
-                .order("creado_en", { ascending: false });
-
+            const { data, error } = await query.eq("id_tienda", id_tienda_vendedor);
             if (error) throw error;
             setProductos(data || []);
-        } catch (err) {
-            console.error("Error:", err.message);
-            setToast({ mostrar: true, mensaje: "Error al cargar productos", tipo: "error" });
-        } finally {
-            setCargando(false);
         }
-    };
+    } catch (err) {
+        console.error("Error al cargar productos:", err);
+        setToast({ 
+            mostrar: true, 
+            mensaje: "Error al cargar los productos", 
+            tipo: "error" 
+        });
+    } finally {
+        setCargando(false);
+    }
+};
 
     const cargarCategorias = async () => {
         try {
@@ -719,19 +737,24 @@ const Productos = () => {
         <Container>
 
             <Row className="align-items-center mb-3">
-                <Col xs={9}>
-                    <h3><i className="bi bi-box-seam me-2"></i> Productos</h3>
-                </Col>
-                <Col xs={3} className="text-end">
-                    <Button 
-                        onClick={() => setMostrarModalRegistro(true)}
-                        disabled={!idTienda}
-                        title={!idTienda ? "Debes crear una tienda primero" : ""}
-                    >
-                        <i className="bi bi-plus-lg"></i> <span className="d-none d-sm-inline">Nuevo</span>
-                    </Button>
-                </Col>
-            </Row>
+    <Col xs={9}>
+        <h3>
+            <i className="bi bi-box-seam me-2"></i>
+            {user?.rol === 'admin' || role === 'admin' 
+                ? 'Todos los Productos - Administrador' 
+                : 'Mis Productos'}
+        </h3>
+    </Col>
+    
+    {/* Solo mostrar botón Nuevo a vendedores */}
+    {(user?.rol === 'vendedor' || role === 'vendedor') && (
+        <Col xs={3} className="text-end">
+            <Button onClick={() => setMostrarModalRegistro(true)} disabled={!idTienda}>
+                <i className="bi bi-plus-lg"></i> Nuevo
+            </Button>
+        </Col>
+    )}
+</Row>
             <hr />
 
             {!idTienda && (

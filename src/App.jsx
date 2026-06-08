@@ -75,15 +75,26 @@ const AppLayout = () => {
             <Route path="/success" element={<RutaProtegida><CheckoutSuccess /></RutaProtegida>} />
             <Route path="/cancel" element={<RutaProtegida><CheckoutCancel /></RutaProtegida>} />
             
-            {/* Rutas de Vendedor */}
-            <Route path="/productos" element={<RutaProtegida rolesPermitidos={['vendedor']}><Productos /></RutaProtegida>} />
-            <Route path="/tiendas" element={<RutaProtegida rolesPermitidos={['vendedor']}><Tiendas /></RutaProtegida>} />
-            <Route path="/vendedor" element={<RutaProtegida rolesPermitidos={['vendedor']}><Vendedor /></RutaProtegida>} />
-            <Route path="/envios" element={<RutaProtegida rolesPermitidos={['vendedor']}><GestionEnvios /></RutaProtegida>} />
-            
-            {/* Rutas de Administrador */}
-            <Route path="/admin-inicio" element={<RutaProtegida><AdminInicio /></RutaProtegida>} />
-            <Route path="/categorias" element={<RutaProtegida><Categorias /></RutaProtegida>} />
+         {/* Rutas de Productos - Tanto Admin como Vendedor */}
+<Route 
+    path="/productos" 
+    element={
+        <RutaProtegida rolesPermitidos={['vendedor', 'admin']}>
+            <Productos />
+        </RutaProtegida>
+    } 
+/>
+
+{/* Rutas exclusivas de Vendedor */}
+<Route path="/tiendas" element={<RutaProtegida rolesPermitidos={['vendedor']}><Tiendas /></RutaProtegida>} />
+<Route path="/vendedor" element={<RutaProtegida rolesPermitidos={['vendedor']}><Vendedor /></RutaProtegida>} />
+<Route path="/envios" element={<RutaProtegida rolesPermitidos={['vendedor']}><GestionEnvios /></RutaProtegida>} />
+
+{/* Rutas de Administrador */}
+<Route path="/admin-inicio" element={<RutaProtegida><AdminInicio /></RutaProtegida>} />
+<Route path="/categorias" element={<RutaProtegida><Categorias /></RutaProtegida>} />
+
+
             
             <Route path="*" element={<Pagina404 />} />
           </Routes>
