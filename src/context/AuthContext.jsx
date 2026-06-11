@@ -25,10 +25,12 @@ export const AuthProvider = ({ children }) => {
     // 1. Obtener sesión inicial y configurar listener en una sola lógica
     const initAuth = async () => {
       try {
+        console.log("🔐 Inicializando autenticación...");
         const { data: { session: initialSession }, error } = await supabase.auth.getSession();
         if (error) throw error;
         
         const initialUser = initialSession?.user ?? null;
+        console.log("📋 Sesión inicial obtenida:", initialUser?.email);
         setSession(initialSession);
         setUser(initialUser);
         
@@ -39,7 +41,7 @@ export const AuthProvider = ({ children }) => {
           setLoading(false);
         }
       } catch (err) {
-        console.error("Error en inicialización de auth:", err);
+        console.error("❌ Error en inicialización de auth:", err);
         setLoading(false);
       } finally {
         isInitialMount = false;
@@ -51,6 +53,7 @@ export const AuthProvider = ({ children }) => {
 
     // 2. Escuchar cambios de autenticación
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      console.log("🔄 onAuthStateChange:", event, "user:", currentSession?.user?.email);
       // Ignorar el evento inicial si ya lo manejamos en initAuth
       if (isInitialMount && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN')) return;
 
@@ -78,9 +81,11 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const fetchUserRole = async (userId, forceLoading = false) => {
+    console.log("👤 fetchUserRole:", userId, "forceLoading:", forceLoading);
     // Si ya tenemos un rol en caché, liberamos el loading de inmediato para que la UI cargue
     const rolEnCache = localStorage.getItem("rol-activo");
     if (rolEnCache) {
+      console.log("✓ Rol en caché:", rolEnCache);
       setRole(rolEnCache);
       setLoading(false); 
     } else if (forceLoading) {
@@ -96,6 +101,7 @@ export const AuthProvider = ({ children }) => {
         .single();
 
       if (!userError && userData) {
+        console.log("📊 Usuario encontrado en DB:", userData);
         // Si el usuario está restringido, cerramos su sesión inmediatamente
         if (userData.restringido) {
           await signOut();
@@ -125,12 +131,13 @@ export const AuthProvider = ({ children }) => {
 
         // Solo actualizamos si el rol final es distinto al que tenemos en estado/caché
         if (rolFinal !== rolEnCache) {
+          console.log("🔄 Rol actualizado:", rolFinal);
           localStorage.setItem("rol-activo", rolFinal);
           setRole(rolFinal);
         }
       }
     } catch (error) {
-      console.error('Error al validar rol en DB:', error);
+      console.error('❌ Error al validar rol en DB:', error);
     } finally {
       setLoading(false);
     }
@@ -143,6 +150,7 @@ export const AuthProvider = ({ children }) => {
 
   const signOut = async () => {
     try {
+      console.log("🚪 Cerrando sesión...");
       // 1. Limpiar estado local inmediatamente para mejorar la respuesta de la UI
       localStorage.removeItem("rol-activo");
       localStorage.removeItem("usuario-supabase");
@@ -155,8 +163,9 @@ export const AuthProvider = ({ children }) => {
 
       // 2. Intentar cerrar sesión en Supabase
       await supabase.auth.signOut();
+      console.log("✓ Sesión cerrada");
     } catch (err) {
-      console.error("Error al cerrar sesión en Supabase:", err);
+      console.error("❌ Error al cerrar sesión en Supabase:", err);
     }
   };
 

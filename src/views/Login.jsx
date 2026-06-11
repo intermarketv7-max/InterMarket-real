@@ -19,20 +19,26 @@ function Login() {
     try {
       setCargando(true);
       setError(null);
+      console.log("🔍 Intentando login con:", usuario);
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email: usuario,
         password: contraseña,
       });
 
+      console.log("📤 Respuesta Supabase:", { data, authError });
+      
       if (authError) {
+        console.error("❌ Error en Supabase:", authError);
         setError("Credenciales incorrectas. Verifica tus datos.");
         return;
       }
       
+      console.log("✅ Login exitoso!");
       // Tras el login exitoso, no navegamos inmediatamente.
       // El useEffect de abajo detectará el cambio de 'user' y esperará al 'role'.
       localStorage.removeItem("rol-activo");
     } catch (err) {
+      console.error("💥 Error capturado:", err);
       setError("Error de conexión con el servidor.");
     } finally {
       setCargando(false);
@@ -58,7 +64,9 @@ function Login() {
   };
 
   useEffect(() => { 
+    console.log("📡 useEffect Login - user:", !!user, "loading:", loading, "role:", role);
     if (user && !loading) {
+      console.log("🎯 Redirigiendo - user:", user.email, "role:", role);
       if (role === 'admin') {
         navegar("/admin-inicio", { replace: true });
       } else {

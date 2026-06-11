@@ -250,11 +250,15 @@ const Encabezado = () => {
           <Nav className="ms-auto align-items-center">
              {!esLogin && !esCatalogo ? (
                 <>
-                  {role !== 'comprador' && (
-                    <Nav.Link onClick={() => manejarNavegacion("/")} className={location.pathname === "/" ? "active fw-bold" : ""}>Inicio</Nav.Link>
+                  {role === 'admin' && (
+                    <>
+                      <Nav.Link onClick={() => manejarNavegacion("/admin-inicio")} className={location.pathname === "/admin-inicio" ? "active fw-bold" : ""}>Administración</Nav.Link> 
+                      <Nav.Link onClick={() => manejarNavegacion("/dasboard-admin")} className={location.pathname === "/dasboard-admin" ? "active fw-bold" : ""}>Dashboard</Nav.Link> 
+                      </>
                   )}
                   {role === 'vendedor' && (
                     <>
+                      <Nav.Link onClick={() => manejarNavegacion("/")} className={location.pathname === "/" ? "active fw-bold" : ""}>Inicio</Nav.Link>
                       <Nav.Link onClick={() => manejarNavegacion("/productos")} className={location.pathname === "/productos" ? "active fw-bold" : ""}>Productos</Nav.Link>
                       <Nav.Link onClick={() => manejarNavegacion("/tiendas")} className={location.pathname === "/tiendas" ? "active fw-bold" : ""}>Tienda</Nav.Link>
                       <Nav.Link onClick={() => manejarNavegacion("/envios")} className={location.pathname === "/envios" ? "active fw-bold" : ""}>Envíos</Nav.Link>
@@ -349,7 +353,11 @@ const Encabezado = () => {
                     </div>
                   </div>
                   <Nav className="flex-column">
-                    <MobileNavLink ruta="/" icono="house" texto="Inicio" />
+                    {role === 'admin' ? (
+                      <MobileNavLink ruta="/admin-inicio" icono="grid" texto="Administración" />
+                    ) : (
+                      <MobileNavLink ruta="/" icono="house" texto="Inicio" />
+                    )}
                     {role === 'vendedor' && (
                       <>
                         <MobileNavLink ruta="/productos" icono="box-seam" texto="Mis Productos" />

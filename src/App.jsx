@@ -24,6 +24,7 @@ const Suscripcion = lazy(() => import("./views/Suscripcion"));
 const CheckoutSuccess = lazy(() => import("./views/CheckoutSuccess"));
 const CheckoutCancel = lazy(() => import("./views/CheckoutCancel"));
 const GestionEnvios = lazy(() => import("./views/GestionEnvios"));
+const DasboardAdmin= lazy(() => import("./views/DasboardAdmin"));
 
 const LoadingFallback = () => (
   <div className="d-flex justify-content-center align-items-center vh-100">
@@ -92,6 +93,7 @@ const AppLayout = () => {
 
 {/* Rutas de Administrador */}
 <Route path="/admin-inicio" element={<RutaProtegida><AdminInicio /></RutaProtegida>} />
+<Route path="/dasboard-admin" element={<RutaProtegida><DasboardAdmin /></RutaProtegida>} />
 <Route path="/categorias" element={<RutaProtegida><Categorias /></RutaProtegida>} />
 
 
